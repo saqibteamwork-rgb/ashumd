@@ -32,13 +32,13 @@ function toSansBold(str) {
 const STYLES = {
     1: {
         id: 1,
-        name: 'SMD-Mini Aesthetic (Default)',
-        tag: '⚡ Classic',
+        name: 'Sweet Floral Aesthetic (Default) 🌸',
+        tag: '🌸 Floral & Hearts',
         makeHeader: (p, s) =>
-`╭━━━〔 ⚡ ${toSansBold(p.botName)} ⚡ 〕━━━┈⊷
-┃ 👤 ${toSansBold('User')}: _${p.userName}_
-┃ 👑 ${toSansBold('Owner')}: ${toSansBold(p.ownerName)}
-┃ 🟢 ${toSansBold('Status')}: ${toSansBold('Connected')} 🟢
+`╭━━━〔 🌸 💖 ${toSansBold(p.botName)} 💖 🌸 〕━━━┈⊷
+┃ 🌸 ${toSansBold('User')}: _${p.userName}_ 💕
+┃ 👑 ${toSansBold('Owner')}: ${toSansBold(p.ownerName)} 🌸
+┃ 🟢 ${toSansBold('Status')}: ${toSansBold('Connected & Lovely')} ✨
 ┃ ⚙️ ${toSansBold('System')}: ${toSansBold('Active')} ⚡
 ┃ 🌐 ${toSansBold('Server')}: ${toSansBold('Running')} 🚀
 ┃ 🔥 ${toSansBold('Modules')}: ${toSansBold('Active')} 🔥
@@ -49,49 +49,55 @@ const STYLES = {
 ┃ 🛡️ ${toSansBold('Mode')}: _${s.isPublic ? 'Public 🌍' : 'Private 🔒'}_
 ┃ 📊 ${toSansBold('RAM')}: _${s.usedMem}MB / ${s.totalMem}MB_
 ┃ 📂 ${toSansBold('Total Commands')}: ${toSansBold(String(s.totalCommands))}
-┃ 📦 ${toSansBold('Version')}: _2.0.0_
-╰━━━━━━━━━━━━━━━━━━┈⊷
+┃ 🔗 ${toSansBold('Pairing Site')}: https://ashumd.vercel.app
+┃ 🎀 ${toSansBold('Version')}: _2.0.0_
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷
 
- ➤ .${toSansBold('menu')} _type karein commands ke liye_\n\n`,
+ 🌸 .${toSansBold('menu')} _type karein sweet commands ke liye_ 💖\n\n`,
         makeBox: (title, cmds) => {
-            const head = `┌───⭓ ⚡ ${toSansBold(title.toUpperCase())} ⭓───\n`;
-            const body = cmds.map(cmd => `│ ⬡ .${toSansBold(cmd)}`).join('\n') + '\n';
-            const foot = `└───────────────────⭓\n\n`;
+            const head = `┌───🌸 💖 ${toSansBold(title.toUpperCase())} 💖 🌸───\n`;
+            const body = cmds.map((cmd, idx) => `│ ${idx % 2 === 0 ? '🌸' : '💖'} .${toSansBold(cmd)}`).join('\n') + '\n';
+            const foot = `└───────────────────🌸\n\n`;
             return head + body + foot;
         },
         makeFooter: (p) =>
-`╭━━━〔 👑 ${toSansBold('POWERED BY')} 〕━━━┈⊷
-┃ 🚀 ${toSansBold(p.ownerName)}
-┃ 🔍 google.com/search?q=mr+saqib
+`╭━━━〔 🌸 💖 ${toSansBold('POWERED BY')} 💖 🌸 〕━━━┈⊷
+┃ 👑 ${toSansBold(p.ownerName)} 🎀
+┃ 🔗 https://ashumd.vercel.app
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`
     },
 
     2: {
         id: 2,
-        name: 'Samurai Katana 父 (Photo Style)',
-        tag: '父 Japanese Katana',
+        name: 'Floral Heart Princess (Girls Aesthetic) 🌸💖',
+        tag: '🌸 Floral Heart',
         makeHeader: (p, s) =>
-`╭────父「 ⚡ ${p.botName.toUpperCase()} ⚡ 」
-│ │ 👤 User: ${p.userName}
-│ │ 👑 Owner: ${p.ownerName}
-│ │ 🟢 Status: Connected
-│ │ ⏳ Uptime: ${s.runtimeStr}
-│ │ 🔑 Prefix: [ . ]
-│ │ 📂 Commands: ${s.totalCommands}
-│ │ 📊 RAM: ${s.usedMem}MB
-╰───────────────父
+`╭━━━〔 🌸 💖 ${toSansBold(p.botName)} 💖 🌸 〕━━━┈⊷
+┃ 🌸 ${toSansBold('Princess')}: _${p.userName}_ 💕
+┃ 👑 ${toSansBold('Queen')}: ${toSansBold(p.ownerName)} 🌸
+┃ 🟢 ${toSansBold('Status')}: ${toSansBold('Online & Gorgeous')} ✨
+┃ 🎀 ${toSansBold('Theme')}: _Sweet Floral & Hearts_ 🌷
+┃ 📅 ${toSansBold('Date')}: _${s.dateStr}_
+┃ ⏳ ${toSansBold('Uptime')}: _${s.runtimeStr}_
+┃ 🔑 ${toSansBold('Prefix')}: [ . ]
+┃ 🛡️ ${toSansBold('Mode')}: _${s.isPublic ? 'Public 🌍' : 'Private 🔒'}_
+┃ 📊 ${toSansBold('RAM')}: _${s.usedMem}MB / ${s.totalMem}MB_
+┃ 📂 ${toSansBold('Total Commands')}: ${toSansBold(String(s.totalCommands))}
+┃ 🔗 ${toSansBold('Pairing Site')}: https://ashumd.vercel.app
+┃ 🎀 ${toSansBold('Version')}: _2.0.0_
+╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷
 
- ➤ .menu <category> type karein commands ke liye\n\n`,
+ 🌸 .${toSansBold('menu')} _type karein sweet commands ke liye_ 💖\n\n`,
         makeBox: (title, cmds) => {
-            const head = `╭────父「 ✨ ${title.toUpperCase()} 」\n`;
-            const body = cmds.map(cmd => `│ │ ▸ .${cmd}`).join('\n') + '\n';
-            const foot = `╰───────────────父\n\n`;
+            const head = `╭───🌸「 💖 ${toSansBold(title.toUpperCase())} 💖 」🌸───╮\n`;
+            const body = cmds.map((cmd, idx) => `│ ${idx % 2 === 0 ? '🌸' : '💖'} ▸ .${cmd}`).join('\n') + '\n';
+            const foot = `╰───────────────────────────────╯\n\n`;
             return head + body + foot;
         },
         makeFooter: (p) =>
-`╭────父「 👑 POWERED BY ${p.ownerName.toUpperCase()} 」
-│ │ 🚀 google.com/search?q=mr+saqib
-╰───────────────父`
+`╭───🌸「 💖 MADE WITH LOVE BY ${p.ownerName.toUpperCase()} 💖 」🌸───╮
+│ 🎀 Pairing Site: https://ashumd.vercel.app
+╰──────────────────────────────────────────╯`
     },
 
     3: {
@@ -105,6 +111,7 @@ const STYLES = {
 ║ 🟢 STATUS: CONNECTED [ONLINE]
 ║ ⏳ UPTIME: ${s.runtimeStr}
 ║ 📂 CMDS: ${s.totalCommands}
+║ 🔗 PAIRING: https://ashumd.vercel.app
 ║ 📊 RAM: ${s.usedMem}MB / ${s.totalMem}MB
 ╚═════════════════════════════════╝\n\n`,
         makeBox: (title, cmds) => {
@@ -115,7 +122,7 @@ const STYLES = {
         },
         makeFooter: (p) =>
 `╔════❮ 👑 POWERED BY ${toSansBold(p.ownerName)} ❯════╗
-║ 🚀 google.com/search?q=mr+saqib
+║ 🔗 https://ashumd.vercel.app
 ╚══════════════════════════════════╝`
     },
 
@@ -130,6 +137,7 @@ const STYLES = {
 │ > STATUS: RUNNING [200 OK]
 │ > UPTIME: ${s.runtimeStr}
 │ > TOTAL CMDS: ${s.totalCommands}
+│ > PAIRING SITE: https://ashumd.vercel.app
 └────────────────────────────────────┘\n\n`,
         makeBox: (title, cmds) => {
             const head = `┌─── [ ⚡ ${title.toUpperCase()} ] ───┐\n`;
@@ -139,6 +147,7 @@ const STYLES = {
         },
         makeFooter: (p) =>
 `┌─── [ 👑 DEVELOPED BY ${p.ownerName} ] ───┐
+│ > https://ashumd.vercel.app
 └──────────────────────────────────────────┘`
     },
 
@@ -153,6 +162,7 @@ const STYLES = {
   🟢 State: Active & Majestic
   ⏳ Runtime: ${s.runtimeStr}
   📂 Armory: ${s.totalCommands} Commands
+  🔗 Portal: https://ashumd.vercel.app
 ❖ ═══════════════════════════════ ❖\n\n`,
         makeBox: (title, cmds) => {
             const head = `❖ ══════ 👑 ${toSansBold(title.toUpperCase())} ══════ ❖\n`;
@@ -161,7 +171,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`❖ ══════ 👑 CROWN OF ${toSansBold(p.ownerName)} ══════ ❖`
+`❖ ══════ 👑 https://ashumd.vercel.app ══════ ❖`
     },
 
     6: {
@@ -175,6 +185,7 @@ const STYLES = {
 │ • Status: Connected
 │ • Uptime: ${s.runtimeStr}
 │ • Commands: ${s.totalCommands}
+│ • Pairing: https://ashumd.vercel.app
 ╰───────────────────\n\n`,
         makeBox: (title, cmds) => {
             const head = `╭─〔 ⚡ ${title.toUpperCase()} 〕\n`;
@@ -183,7 +194,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`╭─〔 👑 Powered by ${p.ownerName} 〕
+`╭─〔 👑 https://ashumd.vercel.app 〕
 ╰─────────────────────────────`
     },
 
@@ -198,6 +209,7 @@ const STYLES = {
 │ 🟢 Status: Kawaii & Active ✨
 │ ⏳ Runtime: ${s.runtimeStr}
 │ 📂 Magic Spells: ${s.totalCommands}
+│ 🔗 Pairing Portal: https://ashumd.vercel.app
 🌸 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🌸\n\n`,
         makeBox: (title, cmds) => {
             const head = `🌸 ━━━━━〔 ✨ ${toSansBold(title.toUpperCase())} 〕━━━━━ 🌸\n`;
@@ -206,7 +218,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`🌸 ━━━━━〔 👑 Made with ❤️ by ${toSansBold(p.ownerName)} 〕━━━━━ 🌸`
+`🌸 ━━━━━〔 💖 https://ashumd.vercel.app 💖 〕━━━━━ 🌸`
     },
 
     8: {
@@ -220,6 +232,7 @@ const STYLES = {
   ▌ Status: Active Stealth
   ▌ Uptime: ${s.runtimeStr}
   ▌ Arsenal: ${s.totalCommands} Modules
+  ▌ Pairing Link: https://ashumd.vercel.app
 ◥◣ ═════════════════════════════ ◥◣\n\n`,
         makeBox: (title, cmds) => {
             const head = `◢◤ ⚡ ${toSansBold(title.toUpperCase())} ◢◤\n`;
@@ -228,7 +241,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`◢◤ 👑 SHADOW COMMAND: ${toSansBold(p.ownerName)} ◢◤`
+`◢◤ 👑 SHADOW COMMAND: https://ashumd.vercel.app ◢◤`
     },
 
     9: {
@@ -242,6 +255,7 @@ const STYLES = {
 ║ 🟢 Status: Running
 ║ ⏳ Uptime: ${s.runtimeStr}
 ║ 📂 Total: ${s.totalCommands} Commands
+║ 🔗 Pairing: https://ashumd.vercel.app
 ╚══════════════════════════════╝\n\n`,
         makeBox: (title, cmds) => {
             const head = `╔═〔 ⚡ ${title.toUpperCase()} 〕═════════════╗\n`;
@@ -250,7 +264,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`╔═〔 👑 POWERED BY ${p.ownerName.toUpperCase()} 〕═╗
+`╔═〔 👑 https://ashumd.vercel.app 〕═╗
 ╚══════════════════════════════╝`
     },
 
@@ -265,6 +279,7 @@ const STYLES = {
 │ 🟢 Status: Online & Ready
 │ ⏳ Uptime: ${s.runtimeStr}
 │ 📂 Total Commands: ${s.totalCommands}
+│ 🔗 Pairing Site: https://ashumd.vercel.app
 ╰──────────────────────────────────────╯\n\n`,
         makeBox: (title, cmds) => {
             const head = `╭────────── ⚡ ${toSansBold(title.toUpperCase())} ──────────╮\n`;
@@ -273,7 +288,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`╭────── 👑 POWERED BY ${toSansBold(p.ownerName)} ──────╮
+`╭────── 👑 https://ashumd.vercel.app ──────╮
 ╰────────────────────────────────────╯`
     },
 
@@ -288,6 +303,7 @@ const STYLES = {
   ⚝ Status: Immortal
   ⚝ Uptime: ${s.runtimeStr}
   ⚝ Grimoire: ${s.totalCommands} Spells
+  ⚝ Portal: https://ashumd.vercel.app
 † ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ †\n\n`,
         makeBox: (title, cmds) => {
             const head = `† ━━━━━━ ⚡ ${toSansBold(title.toUpperCase())} ━━━━━━ †\n`;
@@ -296,7 +312,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`† ━━━━━━ 👑 ETERNAL: ${toSansBold(p.ownerName)} ━━━━━━ †`
+`† ━━━━━━ 👑 https://ashumd.vercel.app ━━━━━━ †`
     },
 
     12: {
@@ -311,6 +327,7 @@ const STYLES = {
 // 🟢 Status : Active & Listening
 // ⏳ Uptime : ${s.runtimeStr}
 // 📂 Total  : ${s.totalCommands} Binaries
+// 🔗 Pairing: https://ashumd.vercel.app
 // ──────────────────────────────────────────\n\n`,
         makeBox: (title, cmds) => {
             const head = `// ─── [ ⚡ ${title.toUpperCase()} ] ───\n`;
@@ -319,7 +336,7 @@ const STYLES = {
             return head + body + foot;
         },
         makeFooter: (p) =>
-`// 👑 (c) ${p.ownerName} • google.com/search?q=mr+saqib`
+`// 👑 https://ashumd.vercel.app`
     },
 
     13: {
@@ -336,6 +353,7 @@ const STYLES = {
 ┃ ⏳ ${toSansBold('Uptime')}: _${s.runtimeStr}_
 ┃ 🔑 ${toSansBold('Prefix')}: [ . ]
 ┃ 📂 ${toSansBold('Total Commands')}: ${toSansBold(String(s.totalCommands))}
+┃ 🔗 ${toSansBold('Pairing Site')}: https://ashumd.vercel.app
 ╰━━━━━━━━━━━━━━━━━━┈⊷
 
  ➤ .${toSansBold('menu')} _type karein commands ke liye_\n\n`,
@@ -348,7 +366,7 @@ const STYLES = {
         makeFooter: (p) =>
 `╭━━━〔 👑 ${toSansBold('POWERED BY')} 〕━━━┈⊷
 ┃ 🚀 ${toSansBold(p.ownerName)}
-┃ 🔍 google.com/search?q=mr+saqib
+┃ 🔗 https://ashumd.vercel.app
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`
     },
 
@@ -363,6 +381,7 @@ const STYLES = {
 
 Swipe through the cards to see all available commands.
 
+🔗 *Pairing Site:* https://ashumd.vercel.app
 🔥 *Powered by ${p.ownerName}* | _Swipe left/right_\n\n`,
         makeBox: (title, cmds) => {
             const head = `┌───🎠 ⚡ ${toSansBold(title.toUpperCase())} ⚡───\n`;
@@ -373,7 +392,7 @@ Swipe through the cards to see all available commands.
         makeFooter: (p) =>
 `╭━━━〔 👑 ${toSansBold('POWERED BY')} 〕━━━┈⊷
 ┃ 🚀 ${toSansBold(p.ownerName)}
-┃ 🔍 google.com/search?q=mr+saqib
+┃ 🔗 https://ashumd.vercel.app
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`
     },
 
@@ -394,8 +413,9 @@ Code: ${p.botName} WaBot
 │ 📅 ${s.dateStr} • ⏱️ 17:40:56
 ├─────────────
 │ 🟢 *Status:* Online (${s.runtimeStr})
-│ 📶 *Host:* SAQIB-SRV-1
+│ 📶 *Host:* HEROKU-CLUSTER
 │ ⚡ *Prefix:* [ . ] • ${s.totalCommands}+ Cmds
+│ 🔗 *Pairing:* https://ashumd.vercel.app
 ╰─────────────\n\n`,
         makeBox: (title, cmds) => {
             const head = `┌───🏷️ ⚡ ${toSansBold(title.toUpperCase())} ⚡───\n`;
@@ -405,6 +425,7 @@ Code: ${p.botName} WaBot
         },
         makeFooter: (p) =>
 `📚 *Use .allmenu to browse all commands.*
+🔗 *Pairing Site:* https://ashumd.vercel.app
 🔥 *Powered by ${p.ownerName}*`
     },
     16: {
@@ -415,6 +436,7 @@ Code: ${p.botName} WaBot
         makeHeader: (p, s) =>
 `*${p.botName}*
 📁 Categories (10) · ${s.totalCommands} commands
+🔗 Pairing Site: https://ashumd.vercel.app
 Kisi bhi category par tap karo
 👇\n\n`,
         makeBox: (title, cmds) => {
@@ -424,7 +446,7 @@ Kisi bhi category par tap karo
             return head + body + foot;
         },
         makeFooter: (p) =>
-`Powered By ${p.botName}`
+`Powered By ${p.botName} • https://ashumd.vercel.app`
     }
 };
 
@@ -461,18 +483,20 @@ function getStyleCatalog(currentStyleId = 1, isOwner = false) {
         return `┃ ${st.id}. *${st.name}* [${st.tag}]${isCurrent}`;
     }).join('\n');
 
-    return `╭━━━〔 🎨 *MENU STYLES CATALOG (15 DESIGNS)* 〕━━━┈⊷\n` +
+    return `╭━━━〔 🌸 💖 *MENU STYLES CATALOG (16 DESIGNS)* 💖 🌸 〕━━━┈⊷\n` +
            lines + `\n` +
            `╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷\n\n` +
+           `🔗 *Pairing Site:* https://ashumd.vercel.app\n\n` +
            `💡 *Kaise Change Karein:*\n` +
-           `👉 \`.setmenu <1-15>\` — Apna default menu design set karein (e.g. \`.setmenu 15\` ya \`.setmenu metaai\`)\n` +
-           `👉 \`.menu <1-15>\` — Kisi bhi design ka foran live preview dekhein (e.g. \`.menu 15\`)\n` +
+           `👉 \`.setmenu 2\` — Cute Floral & Heart Girls Aesthetic Menu set karein 🌸💖\n` +
+           `👉 \`.setmenu <1-16>\` — Apna pasandeeda menu design set karein\n` +
+           `👉 \`.menu <1-16>\` — Kisi bhi design ka foran live preview dekhein (e.g. \`.menu 2\`)\n` +
            `👉 \`.btnmenu\` ya \`.metaaimenu\` — Meta AI Button Card Menu dekhein\n` +
            `👉 \`.cmenu\` — Interactive Swipe Cards Slider Menu dekhein\n` +
            `👉 \`.typmenu\` — VIP Payment Request Card Menu dekhein\n` +
            `👉 \`.resetmenu\` — Wapas default Style 1 par reset karein\n` +
-           (isOwner ? `👉 \`.setmenu -g <1-15>\` — Poore bot ke naye users ka global default set karein\n\n` : `\n`) +
-           `> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ-sᴀǫɪʙ*`;
+           (isOwner ? `👉 \`.setmenu -g <1-16>\` — Poore bot ke naye users ka global default set karein\n\n` : `\n`) +
+           `> *🌸 💖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴀsʜᴜ ᴍᴅ 💖 🌸*`;
 }
 
 /**

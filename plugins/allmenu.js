@@ -118,37 +118,38 @@ const getCategoryEmoji = (category) => {
 const DESIGN = {
     // {BOT} {OWNER} {PLATFORM} {PREFIX} {VERSION} {UPTIME} {COUNT} {MODE}
     HEADER: [
-        "╭━〔⚝ {BOT} ⚝〕━┈●",
-        "┃ *𝐎𝚆𝙽𝙴𝚁:* {OWNER}",
-        "┃ *𝐏𝚁𝙴𝙵𝙸𝚇:* {PREFIX}",
-        "┃ *𝐔𝙿𝚃𝙸𝙼𝙴:* {UPTIME}",
-        "┃ *𝐂𝙾𝙼𝙼𝙰𝙽𝙳𝚂:* {COUNT}",
-        "┃ *𝐌𝙾𝙳𝙴:* {MODE}",
-        "┃ *𝐕𝙴𝚁𝚂𝙸𝙾𝙽:* {VERSION}",
-        "╰━━━━━━━━━━━━━━━━┈●"
+        "╭━━━〔 🌸 💖 {BOT} 💖 🌸 〕━━━┈⊷",
+        "┃ 👑 *𝐎𝚆𝙽𝙴𝚁:* {OWNER}",
+        "┃ 🔑 *𝐏𝚁𝙴𝙵𝙸𝚇:* {PREFIX}",
+        "┃ ⏳ *𝐔𝙿𝚃𝙸𝙼𝙴:* {UPTIME}",
+        "┃ 📂 *𝐂𝙾𝙼𝙼𝙰𝙽𝙳𝚂:* {COUNT}",
+        "┃ 🔗 *𝐏𝙰𝙸𝚁𝙸𝙽𝙶 𝚂𝙸𝚃𝙴:* https://ashumd.vercel.app",
+        "┃ 🛡️ *𝐌𝙾𝙳𝙴:* {MODE}",
+        "┃ 🎀 *𝐕𝙴𝚁𝚂𝙸𝙾𝙽:* {VERSION}",
+        "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷"
     ].join("\n"),
 
     ALL_TITLE: "> {TITLE}",                       // sari commands se pehle wali line
-    ALL_TITLE_TEXT: "ALL COMMANDS BY " + (config.OWNER_NAME || "MR SAQIB"),
+    ALL_TITLE_TEXT: "ALL COMMANDS BY " + (config.OWNER_NAME || "Ashu"),
 
-    // har category ka dabba (naya design: ┏━═❲ TITLE / ┋╭┈⌖ cmd / ┋├┈⌖ cmd / ┋╰┈⌖ cmd / ┗───𒁍)
+    // har category ka dabba (Floral & Heart Girls Aesthetic)
     CATEGORY_TOP:    "",                          // khali = is line ko skip karo
-    CATEGORY_TITLE:  "┏━═❲ {CAT}",
-    COMMAND_FIRST:   "┋╭┈⌖ {CMD}",
-    COMMAND:         "┋├┈⌖ {CMD}",
-    COMMAND_LAST:    "┋╰┈⌖ {CMD}",
-    CATEGORY_BOTTOM: "┗───────────────────𒁍",
+    CATEGORY_TITLE:  "┏━═🌸❲ 💖 {CAT} 💖 ❳",
+    COMMAND_FIRST:   "┋╭┈🌸 {CMD}",
+    COMMAND:         "┋├┈🌸 {CMD}",
+    COMMAND_LAST:    "┋╰┈💖 {CMD}",
+    CATEGORY_BOTTOM: "┗───────────────────🌸",
 
     // ".menu list" likhne par sirf categories ki list is design mein aati hai
     LIST_TOP:    "╭╍╍╍╍╍╍╍╍╍╍┈⊷",
-    LIST_TITLE:  "┣═❲ 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦",
-    LIST_ITEM:   "┃{CAT}",
+    LIST_TITLE:  "┣═🌸❲ 💖 𝗖𝗔𝗧𝗘𝗚𝗢𝗥𝗜𝗘𝗦 💖 ❳",
+    LIST_ITEM:   "┃ 🌸 {CAT}",
     LIST_BOTTOM: "╰╍╍╍╍╍╍╍╍╍╍┈⊷",
     LIST_PER_ROW: 2,
 
     USE_STATIC_MENU: true,   // true = neeche MENU_BLOCKS wali list (khud edit karein); false = commands se auto banega
 
-    FOOTER: "©𝐏𝐨𝐰𝐞𝐫𝐝 𝐁𝐲 " + (config.OWNER_NAME || "MR SAQIB"),   // null = config.BOT_FOOTER ya "© Powered by BOT"
+    FOOTER: "🌸 💖 Powered by " + (config.BOT_NAME || "ASHU MD") + " • https://ashumd.vercel.app 💖 🌸",
     SORT_COMMANDS: true,     // true = A-Z, false = jaise plugins mein likhe hain
     SHOW_HIDDEN: false,      // true = dontAddCommandList wale commands bhi dikhao
     VIDEO_AS_GIF: false,      // true = video GIF ki tarah autoplay/loop; false = normal video
@@ -245,8 +246,8 @@ cmd({
         }
 
         const PREFIX = config.PREFIX || ".";
-        const BOT_NAME = String(config.BOT_NAME || "MR SAQIB MD").replace(/(\s*[-_ ]\s*bot)+\s*$/i, "").trim() || "MR SAQIB MD";
-        const OWNER_NAME = config.OWNER_NAME || "Owner";
+        const BOT_NAME = String(config.BOT_NAME || "ASHU MD").replace(/(\s*[-_ ]\s*bot)+\s*$/i, "").trim() || "ASHU MD";
+        const OWNER_NAME = config.OWNER_NAME || "Ashu";
         const MODE = config.WORK_TYPE || "public";
         const FOOTER = DESIGN.FOOTER || config.BOT_FOOTER || `> ©𝐏𝐨𝐰𝐞𝐫𝐝 𝐁𝐲 ${BOT_NAME}`;
 

@@ -13,34 +13,30 @@ async function ownerCommand(sock, from, msg) {
         ? `+${rawNumber.slice(0, 2)} ${rawNumber.slice(2, 5)} ${rawNumber.slice(5)}`
         : `+${rawNumber}`;
 
-    const websiteUrl = settings.websiteUrl || 'https://mrsaqib.me';
-    const googleSearchUrl = 'https://www.google.com/search?q=mr+saqib';
+    const websiteUrl = settings.websiteUrl || 'https://ashumd.vercel.app';
+    const pairingSiteUrl = 'https://ashumd.vercel.app';
 
     const ownerText =
-`╭━━━〔 👑 *MR SAQIB — DEVELOPER* 〕━━━┈⊷
-┃ 👤 *Name:* Muhammad Saqib
-┃ 🎂 *Age:* 17 Years Old
-┃ 📍 *City:* Faisalabad, Pakistan 🇵🇰
-┃ 💻 *Role:* Cyber Security & Full-Stack Dev
+`╭━━━〔 🌸 💖 *ASHU — BOT OWNER* 💖 🌸 〕━━━┈⊷
+┃ 👑 *Name:* ${settings.ownerName || 'Ashu'} 🌸
 ┃ 🤖 *Engine:* ${settings.botName} · v2.0 Premium
+┃ 🌐 *Status:* Active & Online 24/7 ✨
+┃ 💖 *Aesthetic:* Floral & Hearts Vibe 🌷
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷
 
 ⚡ *DIRECT ACTIONS (TAP TO OPEN)* ⚡
 
-🌐 *Official Website:*
-${websiteUrl}
+🔗 *Pairing & Dashboard Website:*
+${pairingSiteUrl}
 
 📢 *Official Channel:*
 ${settings.channelLink || 'https://whatsapp.com/channel/0029VbDzLTD1iUxe8Hsv1D0M'}
-
-🔍 *Search on Google:*
-${googleSearchUrl}
 
 ↩ *Main Commands Menu:*
 .menu
 
 ───────────────────────
-🚀 *Crafted with ❤️ by MR SAQIB*`;
+🌸 💖 *Crafted with Love for ASHU MD* 💖 🌸`;
 
     const channelContext = {
         forwardingScore: 999,

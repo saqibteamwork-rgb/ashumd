@@ -294,11 +294,13 @@ function getMenuChannelContext(botName = null) {
     };
 }
 
-// Dedicated Separate 'SEARCH ON GOOGLE' Card (100% Preserved!)
+// Dedicated Pairing Site & Official Card (ASHU MD)
 const GOOGLE_LINKS_CARD = 
-`╭━━━〔 🔍 *SEARCH ON GOOGLE* 〕━━━┈⊷
-┃ 🚀 *Mr Saqib:*
-┃ google.com/search?q=mr+saqib
+`╭━━━〔 🌸 💖 *ASHU MD OFFICIAL* 💖 🌸 〕━━━┈⊷
+┃ 🎀 *Pairing Site:*
+┃ https://ashumd.vercel.app
+┃ 👑 *Owner:* Ashu
+┃ 🌸 *Multi-Device 24/7 Automation Hub*
 ╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`;
 
 const CATEGORY_ALIASES = {
