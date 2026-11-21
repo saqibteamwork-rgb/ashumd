@@ -104,7 +104,7 @@ async function sendCategoryButtonMenu(sock, from, msg, botName = 'MR SAQIB MD', 
         let imageMessage = null;
         if (typeof sock?.waUploadToServer === 'function') {
             try {
-                const pic = getBotPic(sock) || { url: settings.menuImage || 'https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png' };
+                const pic = getBotPic(sock) || { url: settings.menuImage || './media/menu.png' };
                 const upload = await Promise.race([
                     prepareWAMessageMedia({ image: pic }, { upload: sock.waUploadToServer }),
                     new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))

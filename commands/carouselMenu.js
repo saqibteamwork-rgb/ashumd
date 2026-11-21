@@ -25,7 +25,7 @@ const MEDIA_TTL_MS = 20 * 60 * 1000;
 async function getUploadedHeaderMedia(sock, prepareWAMessageMedia) {
     const bannerPath = path.join(__dirname, '..', 'lib', 'carousel_banner.jpg');
     const localExists = fs.existsSync(bannerPath);
-    const pic = localExists ? fs.readFileSync(bannerPath) : (getBotPic(sock) || { url: settings.menuImage || 'https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png' });
+    const pic = localExists ? fs.readFileSync(bannerPath) : (getBotPic(sock) || { url: settings.menuImage || './media/menu.png' });
     const key = `${String(sock?.user?.id || '').split(':')[0]}|${localExists ? 'carousel_banner_ninja_v1' : pic.url}`;
 
     const hit = mediaCache.get(key);

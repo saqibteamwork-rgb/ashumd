@@ -73,7 +73,7 @@ ${customText ? `┃ 💬 *Pre-filled Message:* ${customText}\n` : ''}╰━━�
                     title: `Chat with +${phone}`,
                     body: "Click to open WhatsApp direct chat",
                     mediaType: 1,
-                    thumbnailUrl: "https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png",
+                    thumbnailUrl: config.menuImage || "https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg",
                     sourceUrl: waLink,
                     renderLargerThumbnail: false
                 }
@@ -122,7 +122,7 @@ async function grouplinkCommand(sock, from, msg, isOwner, isAdmin) {
                     title: "Group Invite Link",
                     body: "Click to join this WhatsApp Group",
                     mediaType: 1,
-                    thumbnailUrl: "https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png",
+                    thumbnailUrl: config.menuImage || "https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg",
                     sourceUrl: groupLink,
                     renderLargerThumbnail: false
                 }
@@ -213,7 +213,7 @@ ${settings.channelLink}
 🚀 *Fastest & Most Advanced Multi-Device WhatsApp Bot*`;
 
         await sock.sendMessage(from, {
-            image: { url: "https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png" },
+            image: { url: config.menuImage || "https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg" },
             caption: caption,
             contextInfo: {
                 forwardingScore: 999,

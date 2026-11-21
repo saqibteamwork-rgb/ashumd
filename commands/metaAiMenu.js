@@ -74,7 +74,7 @@ async function getUploadedHeaderMedia(sock, prepareWAMessageMedia) {
         imgKey = `${sockId}|img|menu15.jpg`;
     } else {
         const pic = getBotPic(sock) || {
-            url: settings.menuImage || config.menuImage || 'https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png'
+            url: settings.menuImage || config.menuImage || './media/menu.png'
         };
         imageSource = pic;
         imgKey = `${sockId}|img|${pic.url}`;
@@ -311,7 +311,7 @@ async function sendMetaAiButtonMenu(sock, from, msg, botName = 'MR SAQIB MD', ow
                 return true;
             }
             const pic = getBotPic(sock) || {
-                url: settings.menuImage || config.menuImage || 'https://ik.imagekit.io/mrsaqib/image_ePUwM_YDT.png'
+                url: settings.menuImage || config.menuImage || './media/menu.png'
             };
             if (pic && pic.url) {
                 await sock.sendMessage(from, { image: { url: pic.url }, caption: bodyText }, { quoted: metaAiQuote });
