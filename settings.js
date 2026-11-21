@@ -1,0 +1,23 @@
+module.exports = {
+    giphyApiKey: process.env.GIPHY_API_KEY || '',
+    tenorApiKey: process.env.TENOR_API_KEY || '',
+    ownerNumber: process.env.OWNER_NUMBER || '923438673242',
+    botName: process.env.BOT_NAME || 'ASHU MD',
+    ownerName: process.env.OWNER_NAME || 'Ashu',
+    channelLink: process.env.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VbDzLTD1iUxe8Hsv1D0M',
+    newsletterJid: process.env.NEWSLETTER_JID || process.env.NEWSLETTER_ID || '120363431913895899@newsletter',
+    channelName: process.env.CHANNEL_NAME || 'Ashu MD',
+    openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
+    removeBgApiKey: process.env.REMOVEBG_API_KEY || '',
+    menuImage: process.env.MENU_IMAGE || 'https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg',
+    carouselImage: process.env.CAROUSEL_IMAGE || 'https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg',
+    telegramImage: process.env.TELEGRAM_IMAGE || process.env.MENU_IMAGE || 'https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg',
+    websiteUrl: process.env.WEBSITE_URL || 'https://mrsaqib.me',
+    websiteTitle: process.env.WEBSITE_TITLE || 'ASHU MD | WhatsApp Multi-Device Automation Bot',
+    websiteBody: process.env.WEBSITE_BODY || 'ASHU MD created by Ashu',
+    websiteThumbnail: process.env.WEBSITE_THUMBNAIL || 'https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg',
+    cameraApiUrl: process.env.CAMERA_API_URL || 'https://earnpk92-two.vercel.app',
+    proApisKey: process.env.PRO_APIS_KEY || 'freekey',
+    groqApiKey: process.env.GROQ_API_KEY || '',
+    customPairingCode: process.env.CUSTOM_PAIRING_CODE || 'ASHUMD'
+};

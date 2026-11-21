@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MR SAQIB MD - Advanced Schedule & Multi-Channel Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b'
+                        },
+                        darkbg: '#0b0f17',
+                        cardbg: '#111827',
+                        borderbg: '#1f2937'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0b0f17;
+            color: #f3f4f6;
+        }
+        .glass-card {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glow-brand {
+            box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-card border-b border-borderbg px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                    ⚡
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
+                        MR SAQIB MD <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30">Auto Scheduler</span>
+                    </h1>
+                    <p class="text-xs text-gray-400 hidden sm:block">Multi-Channel & Multi-Group Automation Manager</p>
+                </div>
+            </div>
+
+            <!-- Header Right Stats / User -->
+            <div class="flex items-center gap-3 sm:gap-6">
+                <!-- Live PKT Clock -->
+                <div class="hidden md:flex items-center gap-2 bg-gray-800/60 px-3 py-1.5 rounded-lg border border-gray-700/50">
+                    <i class="fa-regular fa-clock text-brand-400"></i>
+                    <span id="livePktTime" class="text-xs font-mono font-medium text-gray-200">--:--:-- PKT</span>
+                </div>
+
+                <!-- Logged In User Pill -->
+                <div id="userProfilePill" class="hidden flex items-center gap-2 bg-gray-800/80 px-3 py-1.5 rounded-lg border border-gray-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="userPhoneLabel" class="text-xs font-semibold text-gray-200">Owner</span>
+                    <button onclick="logout()" title="Logout" class="text-gray-400 hover:text-red-400 ml-1 transition">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-6 flex-grow">
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: WHATSAPP OTP LOGIN VIEW -->
+        <!-- ========================================== -->
+        <div id="loginSection" class="max-w-md mx-auto my-12 glass-card rounded-2xl p-6 sm:p-8 glow-brand">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-brand-400 text-2xl flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white">WhatsApp Web Login</h2>
+                <p class="text-xs text-gray-400 mt-1">Apna WhatsApp number dalein, bot aapke WhatsApp par foran 6-digit OTP code bhejega.</p>
+            </div>
+
+            <!-- Step A: Enter Phone Number -->
+            <div id="phoneStep">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">WhatsApp Phone Number</label>
+                <div class="relative mb-3">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 text-sm">
+                        <i class="fa-solid fa-phone"></i>
+                    </span>
+                    <input type="tel" id="inputPhone" value="923438673242" placeholder="03438673242 ya 923438673242" class="w-full bg-gray-900/80 border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 transition font-mono font-medium">
+                </div>
+                <p class="text-[11px] text-gray-400 mb-4 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-emerald-400"></i> Apna paired WhatsApp number dalein. OTP foran aapke personal <b>"You" (Message Yourself)</b> chat mein deliver hoga.
+                </p>
+                <button onclick="requestOtp()" id="btnSendOtp" class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> Send OTP to "You" (Message Yourself)
+                </button>
+            </div>
+
+            <!-- Step B: Enter 6-Digit OTP -->
+            <div id="otpStep" class="hidden">
+                <div class="bg-brand-500/10 border border-brand-500/20 rounded-xl p-3 mb-4 text-xs text-brand-300 flex items-center justify-between">
+                    <span id="otpDeliveryBadge">📩 OTP aapke WhatsApp par deliver ho chuka hai!</span>
+                    <button onclick="resetLoginStep()" class="text-gray-400 hover:text-white underline text-[10px]">Change #</button>
+                </div>
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">6-Digit Verification Code</label>
+                <div class="relative mb-4">
+                    <input type="text" id="inputOtp" maxlength="6" placeholder="839201" class="w-full tracking-widest text-center text-xl font-mono font-bold bg-gray-900 border border-gray-700 rounded-xl py-3 text-white focus:outline-none focus:border-brand-500 transition">
+                </div>
+                <button onclick="verifyOtp()" id="btnVerifyOtp" class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-shield-check"></i> Verify & Open Dashboard
+                </button>
+                <p class="text-[11px] text-gray-400 mt-3 text-center">
+                    💡 Tip: WhatsApp OTP enter karein ya Admin Password (<span class="font-mono text-emerald-400 select-all">password123</span>) se login karein.
+                </p>
+            </div>
+
+            <div id="loginFeedback" class="hidden mt-4 p-3 rounded-xl text-xs text-center font-medium"></div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: MAIN VISUAL SCHEDULE DASHBOARD -->
+        <!-- ========================================== -->
+        <div id="dashboardSection" class="hidden space-y-6">
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="glass-card rounded-xl p-4 border border-borderbg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-gray-400">Total Schedules</span>
+                        <i class="fa-solid fa-calendar-check text-brand-400"></i>
+                    </div>
+                    <p id="statTotal" class="text-2xl font-bold text-white mt-1">0</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 border border-borderbg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-gray-400">Active Running</span>
+                        <i class="fa-solid fa-circle-play text-emerald-400"></i>
+                    </div>
+                    <p id="statActive" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 border border-borderbg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-gray-400">Paused</span>
+                        <i class="fa-solid fa-circle-pause text-amber-400"></i>
+                    </div>
+                    <p id="statPaused" class="text-2xl font-bold text-amber-400 mt-1">0</p>
+                </div>
+                <div class="glass-card rounded-xl p-4 border border-borderbg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-gray-400">Server Time (PKT)</span>
+                        <i class="fa-solid fa-earth-asia text-blue-400"></i>
+                    </div>
+                    <p id="statPktClock" class="text-lg font-mono font-bold text-white mt-1">--:--</p>
+                </div>
+            </div>
+
+            <!-- Two-Column Layout: Creator Form (Left) & Active Visual Cards (Right) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                <!-- Left Column: Create New Schedule -->
+                <div class="lg:col-span-5 glass-card rounded-2xl p-5 sm:p-6 border border-borderbg">
+                    <div class="flex items-center justify-between pb-4 border-b border-borderbg mb-4">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-plus-circle text-brand-400"></i> Naya Schedule Banayein
+                        </h3>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20">PKT (UTC+5)</span>
+                    </div>
+
+                    <form id="createScheduleForm" onsubmit="createSchedule(event)" class="space-y-4">
+                        <!-- 1. Time Input -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">⏰ Schedule Time (Pakistan Time)</label>
+                            <input type="text" id="schedTime" placeholder="e.g. 09:30 PM ya 21:00" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500 transition">
+                            <div class="flex flex-wrap gap-1.5 mt-2">
+                                <button type="button" onclick="setTimePreset('08:00 AM')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded border border-gray-700">08:00 AM</button>
+                                <button type="button" onclick="setTimePreset('01:30 PM')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded border border-gray-700">01:30 PM</button>
+                                <button type="button" onclick="setTimePreset('06:00 PM')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded border border-gray-700">06:00 PM</button>
+                                <button type="button" onclick="setTimePreset('09:30 PM')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded border border-gray-700">09:30 PM</button>
+                                <button type="button" onclick="setTimePreset('11:00 PM')" class="text-[11px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-0.5 rounded border border-gray-700">11:00 PM</button>
+                            </div>
+                        </div>
+
+                        <!-- 2. Target Destinations (Single or 10-20 Channels) -->
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-300 mb-1.5">🎯 Destination (Kahan Post Karein?)</label>
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <button type="button" onclick="setDestMode('all')" id="btnDestAll" class="text-xs py-1.5 px-2 rounded-lg border border-brand-500 bg-brand-500/20 text-brand-300 font-semibold text-center transition">
+                                    🌐 All Groups
+                                </button>
+                                <button type="button" onclick="setDestMode('channel')" id="btnDestChannel" class="text-xs py-1.5 px-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:text-white text-center transition">
+                                    📢 Channel
+                                </button>
+                                <button type="button" onclick="setDestMode('custom')" id="btnDestCustom" class="text-xs py-1.5 px-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:text-white text-center transition">
+                                    📑 10-20 Targets
+                                </button>
+                            </div>
+
+                            <!-- Custom Multi-Destination Textarea (Hidden by default) -->
+                            <div id="customDestArea" class="hidden">
+                                <textarea id="customDestinationsInput" rows="3" placeholder="10 se 20 Channels ya Group links yahan comma ya newline ke sath dalein:&#10;120363431913895899@newsletter&#10;https://chat.whatsapp.com/...&#10;120363150265582047@newsletter" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-500 font-mono"></textarea>
+                                <p class="text-[10px] text-gray-400 mt-1">Har channel JID ya link alag line ya comma mein dalein.</p>
+                            </div>
+                        </div>
+
+                        <!-- 3. Message / Caption -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-semibold text-gray-300">📝 Post Message / Text</label>
+                                <button type="button" onclick="draftWithAi()" id="btnAiDraft" class="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Post Draft
+                                </button>
+                            </div>
+                            <textarea id="schedMessage" rows="4" placeholder="Apna post text ya caption yahan likhein..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-brand-500 transition"></textarea>
+                        </div>
+
+                        <!-- 4. Photo Link / Banner with Live Preview -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-gray-300">🖼️ Photo Link (Optional Image URL)</label>
+                                <button type="button" onclick="setPresetBanner('/banner.jpg')" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition flex items-center gap-1">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Use Ninja Banner
+                                </button>
+                            </div>
+                            <input type="url" id="schedMediaUrl" oninput="updateImagePreview(this.value)" placeholder="https://ik.imagekit.io/.../image.jpg ya /banner.jpg" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-brand-500 transition">
+
+                            <!-- Live Image Preview Box -->
+                            <div id="imgPreviewContainer" class="hidden mt-2 rounded-xl overflow-hidden border border-gray-700/80 bg-gray-900/50 max-h-48 flex items-center justify-center">
+                                <img id="imgPreview" src="" alt="Thumbnail preview" class="max-h-48 w-full object-cover">
+                            </div>
+                        </div>
+
+                        <!-- 5. Repeat Setting -->
+                        <div class="flex items-center justify-between pt-1">
+                            <span class="text-xs font-semibold text-gray-300">🔁 Rozana Repeat Karein (Daily)</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="schedRecurring" checked class="sr-only peer">
+                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="btnCreateSchedule" class="w-full bg-gradient-to-r from-brand-600 to-emerald-500 hover:from-brand-500 hover:to-emerald-400 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 glow-brand">
+                            <i class="fa-solid fa-rocket"></i> Create & Activate Schedule
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Right Column: Visual Schedules Grid -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="flex items-center justify-between pb-2 border-b border-borderbg">
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-brand-400"></i> Active Schedules
+                        </h3>
+                        <button onclick="fetchSchedules()" class="text-xs text-gray-400 hover:text-white flex items-center gap-1 transition">
+                            <i class="fa-solid fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+
+                    <!-- Cards Container -->
+                    <div id="schedulesGrid" class="space-y-3.5">
+                        <div class="text-center py-12 text-gray-500 text-sm">
+                            <i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-brand-400"></i>
+                            <p>Schedules load ho rahe hain...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-borderbg py-4 px-4 text-center text-xs text-gray-500">
+        <p>⚡ MR SAQIB MD Automation Suite • Powered by <span class="text-gray-300 font-semibold">MR SAQIB</span></p>
+    </footer>
+
+    <!-- App Logic -->
+    <script>
+        let currentAuthToken = localStorage.getItem('saqib_schedule_token') || null;
+        let selectedDestMode = 'all';
+
+        // ═════════════════════════════════════════════════════════════
+        // PARALLEL PING DISCOVERY (11 Cluster Nodes)
+        // ═════════════════════════════════════════════════════════════
+        const ALL_CLUSTER_NODES = [
+            'https://web-production-08da5300.up.railway.app',
+            'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
+            'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
+            'https://saqibbot3-bb2b46aa1cb4.herokuapp.com',
+            'https://saqibot4-1469f73b3d77.herokuapp.com',
+            'https://saqibbot5-5ffa090fe31f.herokuapp.com',
+            'https://saqibot6-061b6d17645d.herokuapp.com',
+            'https://saqibot7-b9d00e67a587.herokuapp.com',
+            'https://saqibbot8-f10fafc8b934.herokuapp.com',
+            'https://saqibbot9-bebb531508e3.herokuapp.com',
+            'https://saqibot10-d27e9f3ad01e.herokuapp.com',
+            'https://saqibbot11-815563078799.herokuapp.com',
+            'https://saqibbot12-2fb338ff529a.herokuapp.com',
+            'https://saqibot13-392b066b37a5.herokuapp.com',
+            'https://saqibbot14-d84e8d59500a.herokuapp.com',
+            'https://saqibbot16-b071c813d801.herokuapp.com',
+            'https://saqibot17-a471970ef223.herokuapp.com',
+            'https://saqibbot18-45854000f60b.herokuapp.com',
+            'https://saqibbot19-bb306a89a5f4.herokuapp.com',
+            'https://saqibbot20-317bb68e4db0.herokuapp.com',
+            'https://saqibbot22-9318c2de0250.herokuapp.com',
+            'https://saqibot23-1f4bec48d0f2.herokuapp.com',
+            'https://saqibbot25-46c4cf949a77.herokuapp.com',
+            'https://saqibot25-0974df36edd8.herokuapp.com',
+            'https://saqibot26-69a8011cc819.herokuapp.com',
+            'https://saqibot27-1c1d295781fa.herokuapp.com',
+            'https://saqibbot28-658e7de676c8.herokuapp.com'
+        ];
+
+        let activeHostNode = localStorage.getItem('saqib_host_node') || ALL_CLUSTER_NODES[0];
+
+        async function discoverHostNode(phone) {
+            const clean = String(phone).replace(/[^0-9]/g, '');
+            console.log('📡 [Discovery] Probing 11 cluster nodes in parallel for phone:', clean);
+
+            // Parallel Ping Discovery: Simultaneously query all 11 nodes
+            const probePromises = ALL_CLUSTER_NODES.map(async (url) => {
+                try {
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 2500);
+                    const res = await fetch(`${url}/api/schedule/probe-session?phone=${encodeURIComponent(clean)}`, {
+                        signal: ctrl.signal
+                    });
+                    clearTimeout(timer);
+                    const data = await res.json();
+                    if (data && data.hasSession) {
+                        return { url, nodeId: data.nodeId };
+                    }
+                } catch (_) {}
+                return null;
+            });
+
+            const results = await Promise.all(probePromises);
+            const matched = results.find(r => r && r.url);
+            if (matched) {
+                activeHostNode = matched.url;
+                localStorage.setItem('saqib_host_node', matched.url);
+                console.log(`✅ [Discovery Match] Phone ${clean} found active on:`, matched.url);
+                return matched.url;
+            }
+
+            console.log('ℹ️ [Discovery] No existing paired session found on 11 nodes for phone:', clean);
+            return null;
+        }
+
+        async function clusterFetch(path, options = {}) {
+            const baseUrl = activeHostNode || ALL_CLUSTER_NODES[0];
+            const targetUrl = path.startsWith('http') ? path : `${baseUrl}${path}`;
+            try {
+                return await fetch(targetUrl, options);
+            } catch (err) {
+                // Fallback to relative Vercel proxy if direct node unreachable
+                return await fetch(path, options);
+            }
+        }
+
+        // Check login on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            startClock();
+            if (currentAuthToken) {
+                showDashboard();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Live Clock (PKT: UTC+5)
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                const pkt = new Date(now.getTime() + (5 * 60 + now.getTimezoneOffset()) * 60000);
+                const timeStr = pkt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                document.getElementById('livePktTime').textContent = `${timeStr} PKT`;
+                const clockMini = document.getElementById('statPktClock');
+                if (clockMini) clockMini.textContent = timeStr;
+            }, 1000);
+        }
+
+        function showLogin() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('userProfilePill').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('userProfilePill').classList.remove('hidden');
+            const savedPhone = localStorage.getItem('saqib_user_phone') || 'Owner';
+            document.getElementById('userPhoneLabel').textContent = `+${savedPhone}`;
+            fetchSchedules();
+        }
+
+        function logout() {
+            localStorage.removeItem('saqib_schedule_token');
+            localStorage.removeItem('saqib_user_phone');
+            currentAuthToken = null;
+            showLogin();
+        }
+
+        function setTimePreset(timeStr) {
+            document.getElementById('schedTime').value = timeStr;
+        }
+
+        function setDestMode(mode) {
+            selectedDestMode = mode;
+            const btnAll = document.getElementById('btnDestAll');
+            const btnCh = document.getElementById('btnDestChannel');
+            const btnCustom = document.getElementById('btnDestCustom');
+            const customArea = document.getElementById('customDestArea');
+
+            [btnAll, btnCh, btnCustom].forEach(b => {
+                b.className = 'text-xs py-1.5 px-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 hover:text-white text-center transition';
+            });
+
+            if (mode === 'all') {
+                btnAll.className = 'text-xs py-1.5 px-2 rounded-lg border border-brand-500 bg-brand-500/20 text-brand-300 font-semibold text-center transition';
+                customArea.classList.add('hidden');
+            } else if (mode === 'channel') {
+                btnCh.className = 'text-xs py-1.5 px-2 rounded-lg border border-brand-500 bg-brand-500/20 text-brand-300 font-semibold text-center transition';
+                customArea.classList.add('hidden');
+            } else if (mode === 'custom') {
+                btnCustom.className = 'text-xs py-1.5 px-2 rounded-lg border border-brand-500 bg-brand-500/20 text-brand-300 font-semibold text-center transition';
+                customArea.classList.remove('hidden');
+            }
+        }
+
+        function setPresetBanner(url) {
+            const input = document.getElementById('schedMediaUrl');
+            input.value = url;
+            updateImagePreview(url);
+        }
+
+        function updateImagePreview(url) {
+            const container = document.getElementById('imgPreviewContainer');
+            const img = document.getElementById('imgPreview');
+            if (url && (url.startsWith('http') || url.startsWith('/'))) {
+                img.src = url;
+                container.classList.remove('hidden');
+                img.onerror = () => container.classList.add('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // AI Post Drafter in Browser
+        async function draftWithAi() {
+            const btn = document.getElementById('btnAiDraft');
+            const textarea = document.getElementById('schedMessage');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+            try {
+                const topic = prompt("AI se kis topic par post banwani hai? (e.g. Jummah Mubarak, Tech Tips, Motivation, Group Notice)", "Daily Motivational Quote for students");
+                if (!topic) {
+                    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI Post Draft';
+                    return;
+                }
+                const promptText = `Generate a high quality, attractive WhatsApp post in Roman Urdu and English about: "${topic}". Include emojis, nice headers, and good format.`;
+                const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(promptText)}`);
+                const text = await res.text();
+                textarea.value = text.trim();
+            } catch (err) {
+                alert("AI drafting failed: " + err.message);
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI Post Draft';
+            }
+        }
+
+        // OTP Request with Parallel Ping Discovery across 11 Nodes
+        async function requestOtp() {
+            const phone = document.getElementById('inputPhone').value.trim();
+            const feedback = document.getElementById('loginFeedback');
+            const btn = document.getElementById('btnSendOtp');
+
+            if (!phone) {
+                alert("Please enter your WhatsApp phone number.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking 11 Servers...';
+
+            try {
+                // 1. Parallel Ping Discovery: Discover which of the 11 servers holds this phone's session
+                const targetNode = await discoverHostNode(phone);
+
+                if (!targetNode) {
+                    // STRICT: Number is NOT paired on any of the 11 servers. Refuse to send OTP from other bots!
+                    feedback.className = 'mt-4 p-4 rounded-xl text-xs font-normal bg-amber-500/10 text-amber-200 border border-amber-500/30 text-left';
+                    feedback.innerHTML = `
+                        <div class="flex items-center gap-2 text-rose-400 font-bold mb-1.5 text-sm">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>WhatsApp Bot Pair Nahi Hai!</span>
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed mb-3">
+                            Aapka WhatsApp number (+${phone}) kisi bhi server par connect nahi hai. Pehle apna bot pair karein taake OTP aapke apne WhatsApp <b>"You" (Message Yourself)</b> chat mein aa sake!
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button type="button" onclick="requestPairCode('${phone}')" id="btnGetPairCode" class="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow">
+                                <i class="fa-solid fa-key"></i> Get Pairing Code Now
+                            </button>
+                            <a href="/pair" target="_blank" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-semibold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 text-center">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Pair Website
+                            </a>
+                        </div>
+                        <div id="inlinePairDisplay" class="hidden mt-3 p-3 bg-gray-950/90 border border-amber-500/40 rounded-xl text-center"></div>
+                    `;
+                    feedback.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP to "You" (Message Yourself)';
+                    return;
+                }
+
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending OTP to "You"...';
+
+                let res = await clusterFetch('/api/schedule/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+                let data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('phoneStep').classList.add('hidden');
+                    document.getElementById('otpStep').classList.remove('hidden');
+                    const badge = document.getElementById('otpDeliveryBadge');
+                    if (badge) {
+                        badge.innerHTML = '📩 OTP aapke WhatsApp <b>"You" (Message Yourself)</b> chat mein deliver ho chuka hai!';
+                    }
+                    feedback.className = 'mt-4 p-3 rounded-xl text-xs text-center font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                    feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5"></i> ${data.message}`;
+                    feedback.classList.remove('hidden');
+                    document.getElementById('inputOtp').focus();
+                } else if (data.notPaired) {
+                    feedback.className = 'mt-4 p-4 rounded-xl text-xs font-normal bg-amber-500/10 text-amber-200 border border-amber-500/30 text-left';
+                    feedback.innerHTML = `
+                        <div class="flex items-center gap-2 text-rose-400 font-bold mb-1.5 text-sm">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Bot Is Not Paired!</span>
+                        </div>
+                        <p class="text-gray-300 text-xs leading-relaxed mb-3">
+                            ${data.message || 'Ye WhatsApp number bot ke sath pair nahi hai. Pehle bot ko pair karein taake OTP aapke WhatsApp "You" (Message Yourself) chat mein deliver ho sake!'}
+                        </p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <button type="button" onclick="requestPairCode('${data.phone || phone}')" id="btnGetPairCode" class="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow">
+                                <i class="fa-solid fa-key"></i> Get Pairing Code Now
+                            </button>
+                            <a href="/pair" target="_blank" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 font-semibold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 text-center">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Pair Website
+                            </a>
+                        </div>
+                        <div id="inlinePairDisplay" class="hidden mt-3 p-3 bg-gray-950/90 border border-amber-500/40 rounded-xl text-center"></div>
+                    `;
+                    feedback.classList.remove('hidden');
+                } else {
+                    feedback.className = 'mt-4 p-3 rounded-xl text-xs text-center font-medium bg-red-500/10 text-red-400 border border-red-500/20';
+                    feedback.textContent = data.error || 'OTP send failed.';
+                    feedback.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert("Request error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP to "You" (Message Yourself)';
+            }
+        }
+
+        let pollInterval = null;
+        async function requestPairCode(phone) {
+            const btn = document.getElementById('btnGetPairCode');
+            const display = document.getElementById('inlinePairDisplay');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Code...';
+            }
+            try {
+                const res = await fetch(`/api/pair?number=${encodeURIComponent(phone)}`);
+                const data = await res.json();
+                if (data.success && data.code) {
+                    display.innerHTML = `
+                        <div class="text-xs text-amber-400 font-semibold mb-1">🔗 WhatsApp Pairing Code:</div>
+                        <div class="text-2xl font-mono font-extrabold text-white tracking-widest my-1 bg-gray-900 py-2 rounded-lg border border-gray-700 select-all">${data.code}</div>
+                        <div class="text-[11px] text-gray-400 mt-1.5">
+                            Apne WhatsApp par: <b>Settings &gt; Linked Devices &gt; Link with phone number</b> mein ye code enter karein.
+                        </div>
+                        <div class="mt-2.5 flex items-center justify-center gap-2">
+                            <span class="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+                                <i class="fa-solid fa-circle-notch fa-spin"></i> Waiting for WhatsApp link...
+                            </span>
+                        </div>
+                    `;
+                    display.classList.remove('hidden');
+                    pollPairStatus(phone);
+                } else if (data.status === 'already_connected' || data.isConnected) {
+                    display.innerHTML = `
+                        <div class="text-xs text-emerald-400 font-bold mb-2">🎉 Bot successfully connected!</div>
+                        <button type="button" onclick="requestOtp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> Send OTP to "You" Now
+                        </button>
+                    `;
+                    display.classList.remove('hidden');
+                } else {
+                    alert(data.message || data.error || "Pairing code generate nahi ho saka.");
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-key"></i> Retry Get Code';
+                    }
+                }
+            } catch (err) {
+                alert("Pairing request failed: " + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-key"></i> Retry Get Code';
+                }
+            }
+        }
+
+        function pollPairStatus(phone) {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/schedule/pair-status?phone=${encodeURIComponent(phone)}`);
+                    const data = await res.json();
+                    if (data.success && data.isConnected) {
+                        clearInterval(pollInterval);
+                        const display = document.getElementById('inlinePairDisplay');
+                        if (display) {
+                            display.innerHTML = `
+                                <div class="text-xs text-emerald-400 font-bold mb-1">✅ Bot Paired Successfully!</div>
+                                <p class="text-[11px] text-gray-300 mb-2">Aapka WhatsApp bot connect ho chuka hai.</p>
+                                <button type="button" onclick="requestOtp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">
+                                    <i class="fa-solid fa-paper-plane mr-1"></i> Send OTP to "You" Now
+                                </button>
+                            `;
+                        }
+                    }
+                } catch (_) {}
+            }, 3000);
+        }
+
+        function resetLoginStep() {
+            if (pollInterval) clearInterval(pollInterval);
+            document.getElementById('phoneStep').classList.remove('hidden');
+            document.getElementById('otpStep').classList.add('hidden');
+            const feedback = document.getElementById('loginFeedback');
+            feedback.classList.add('hidden');
+            feedback.innerHTML = '';
+        }
+
+        // OTP Verification
+        async function verifyOtp() {
+            const phone = document.getElementById('inputPhone').value.trim();
+            const otp = document.getElementById('inputOtp').value.trim();
+            const btn = document.getElementById('btnVerifyOtp');
+            const feedback = document.getElementById('loginFeedback');
+
+            if (!otp) {
+                alert("Please enter the 6-digit OTP code.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+
+            try {
+                let res = await clusterFetch('/api/schedule/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, otp })
+                });
+                let data = await res.json();
+                if (data.success && data.token) {
+                    currentAuthToken = data.token;
+                    localStorage.setItem('saqib_schedule_token', data.token);
+                    localStorage.setItem('saqib_user_phone', phone);
+                    showDashboard();
+                } else {
+                    feedback.className = 'mt-4 p-3 rounded-xl text-xs text-center font-medium bg-red-500/10 text-red-400 border border-red-500/20';
+                    feedback.textContent = data.error || 'Verification failed.';
+                    feedback.classList.remove('hidden');
+                }
+            } catch (err) {
+                alert("Verification error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Verify & Open Dashboard';
+            }
+        }
+
+        // Fetch & Render Schedules
+        async function fetchSchedules() {
+            if (!currentAuthToken) return;
+            const grid = document.getElementById('schedulesGrid');
+
+            try {
+                const res = await clusterFetch('/api/schedule/list', {
+                    headers: { 'Authorization': `Bearer ${currentAuthToken}` }
+                });
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('statTotal').textContent = data.stats.total;
+                    document.getElementById('statActive').textContent = data.stats.active;
+                    document.getElementById('statPaused').textContent = data.stats.paused;
+                    renderSchedules(data.schedules);
+                }
+            } catch (err) {
+                grid.innerHTML = `<div class="text-center py-8 text-red-400 text-xs">Failed to load schedules: ${err.message}</div>`;
+            }
+        }
+
+        function renderSchedules(list) {
+            const grid = document.getElementById('schedulesGrid');
+            if (!list || !list.length) {
+                grid.innerHTML = `
+                    <div class="glass-card rounded-xl p-8 text-center text-gray-400">
+                        <i class="fa-regular fa-calendar-xmark text-3xl mb-2 text-gray-500"></i>
+                        <p class="text-sm font-semibold">Koi bhi active schedule nahi mila.</p>
+                        <p class="text-xs text-gray-500 mt-1">Left side form se naya schedule create karein!</p>
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = list.map((s, idx) => {
+                const statusBadge = s.enabled
+                    ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">🟢 Active</span>'
+                    : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">⏸️ Paused</span>';
+
+                const destCount = Array.isArray(s.destinations) && s.destinations.length > 0 ? s.destinations.length : 1;
+                const destBadge = s.targetJid === 'all'
+                    ? '<span class="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">🌐 All Groups</span>'
+                    : (s.targetJid === 'channel'
+                        ? '<span class="text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">📢 Official Channel</span>'
+                        : `<span class="text-[10px] bg-gray-800 text-gray-300 border border-gray-700 px-2 py-0.5 rounded">📑 ${destCount} Destination(s)</span>`);
+
+                const imageHtml = s.mediaUrl
+                    ? `<div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700 bg-gray-900"><img src="${s.mediaUrl}" alt="Media" class="w-full h-full object-cover"></div>`
+                    : '';
+
+                return `
+                <div class="glass-card rounded-xl p-4 border border-borderbg hover:border-gray-600 transition flex flex-col justify-between gap-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            ${imageHtml}
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-sm font-bold text-white font-mono">${s.time24} PKT</span>
+                                    ${statusBadge}
+                                    ${destBadge}
+                                </div>
+                                <p class="text-xs text-gray-300 line-clamp-2">${s.message || '<i class="text-gray-500">No text caption</i>'}</p>
+                                <p class="text-[10px] text-gray-500 mt-1">ID: <code class="text-gray-400">${s.id}</code> • Repeat: ${s.recurring ? 'Daily' : 'Once'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+                        <button onclick="toggleSchedule('${s.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition">
+                            ${s.enabled ? '<i class="fa-solid fa-pause"></i> Pause' : '<i class="fa-solid fa-play"></i> Resume'}
+                        </button>
+                        <button onclick="deleteSchedule('${s.id}')" class="text-xs px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition">
+                            <i class="fa-solid fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Create Schedule API Call
+        async function createSchedule(e) {
+            e.preventDefault();
+            const time = document.getElementById('schedTime').value.trim();
+            const message = document.getElementById('schedMessage').value.trim();
+            const mediaUrl = document.getElementById('schedMediaUrl').value.trim();
+            const recurring = document.getElementById('schedRecurring').checked;
+
+            let destinations = [];
+            if (selectedDestMode === 'all') {
+                destinations = ['all'];
+            } else if (selectedDestMode === 'channel') {
+                destinations = ['channel'];
+            } else if (selectedDestMode === 'custom') {
+                const text = document.getElementById('customDestinationsInput').value.trim();
+                destinations = text.split(/[,\n]+/).map(p => p.trim()).filter(Boolean);
+                if (!destinations.length) {
+                    alert("Please enter at least 1 channel or group link.");
+                    return;
+                }
+            }
+
+            const btn = document.getElementById('btnCreateSchedule');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                const res = await clusterFetch('/api/schedule/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentAuthToken}`
+                    },
+                    body: JSON.stringify({ time, destinations, message, mediaUrl, recurring })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('schedMessage').value = '';
+                    document.getElementById('schedMediaUrl').value = '';
+                    document.getElementById('imgPreviewContainer').classList.add('hidden');
+                    fetchSchedules();
+                    alert(`✅ Schedule ${data.formattedTime} PKT ke liye activate ho gaya hai!`);
+                } else {
+                    alert("Error: " + (data.error || "Failed to add schedule"));
+                }
+            } catch (err) {
+                alert("Creation error: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Create & Activate Schedule';
+            }
+        }
+
+        // Toggle Schedule
+        async function toggleSchedule(id) {
+            try {
+                const res = await clusterFetch('/api/schedule/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentAuthToken}`
+                    },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchSchedules();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Toggle error: " + err.message);
+            }
+        }
+
+        // Delete Schedule
+        async function deleteSchedule(id) {
+            if (!confirm("Kya aap waqai is schedule ko delete karna chahte hain?")) return;
+            try {
+                const res = await clusterFetch('/api/schedule/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentAuthToken}`
+                    },
+                    body: JSON.stringify({ id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fetchSchedules();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Delete error: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

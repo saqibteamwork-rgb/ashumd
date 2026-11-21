@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ASHU MD · Official WhatsApp Bot & Pairing Hub</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Fredoka, Plus Jakarta Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Socket.IO Client CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    :root {
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-highlight: rgba(255, 255, 255, 0.95);
+      --glass-shadow: rgba(45, 55, 95, 0.18);
+      --pink-accent: #f472b6;
+      --rose-grad: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f8e8f4;
+      background-image: 
+        radial-gradient(at 10% 10%, #ffc8dd 0px, transparent 45%),
+        radial-gradient(at 85% 12%, #bde0fe 0px, transparent 48%),
+        radial-gradient(at 15% 45%, #d8f3dc 0px, transparent 50%),
+        radial-gradient(at 85% 50%, #ffdfba 0px, transparent 45%),
+        radial-gradient(at 25% 80%, #e0fbfc 0px, transparent 50%),
+        radial-gradient(at 80% 88%, #cdb4db 0px, transparent 50%),
+        linear-gradient(135deg, #ffd6e8 0%, #d8f3fc 35%, #fce1e4 70%, #dce4ff 100%);
+      background-attachment: fixed;
+      color: #1a1b26;
+      min-height: 100vh;
+    }
+
+    .font-display {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* 3D Pastel Glossy Title ("ASHU MD") */
+    .title-3d-rose {
+      font-family: 'Fredoka', sans-serif;
+      background: linear-gradient(180deg, #fff5f8 0%, #ffc2d4 55%, #e88ca7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0px 3px 0px #b85d79) drop-shadow(0px 6px 10px rgba(168, 70, 100, 0.3));
+    }
+
+    .title-3d-blue {
+      font-family: 'Fredoka', sans-serif;
+      color: #f0f6ff;
+      text-shadow: 
+        0 1px 0 #ffffff,
+        0 2px 0 #c6dafc,
+        0 3px 0 #9dbbf3,
+        0 4px 0 #7b9ee3,
+        0 6px 12px rgba(59, 89, 152, 0.35),
+        0 0 18px rgba(255, 255, 255, 0.8);
+      letter-spacing: 0.04em;
+    }
+
+    /* Thick 3D Molded Clear Acrylic Capsule Frame */
+    .acrylic-frame {
+      position: relative;
+      background: linear-gradient(135deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.28) 50%, rgba(255,255,255,0.52) 100%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 3px solid rgba(255, 255, 255, 0.88);
+      box-shadow: 
+        0 16px 32px -6px rgba(35, 48, 78, 0.16),
+        0 6px 12px -2px rgba(35, 48, 78, 0.10),
+        inset 0 3px 6px rgba(255, 255, 255, 0.95),
+        inset 0 -4px 8px rgba(180, 150, 190, 0.22),
+        inset 3px 0 6px rgba(255, 255, 255, 0.7),
+        inset -3px 0 6px rgba(180, 160, 200, 0.2);
+      transition: all 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .acrylic-frame::before {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: inherit;
+      border: 1.5px solid rgba(255, 255, 255, 0.55);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Specular top glass shine strip */
+    .acrylic-frame::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 10%;
+      right: 10%;
+      height: 7px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+      pointer-events: none;
+      z-index: 21;
+    }
+
+    .acrylic-interactive:hover {
+      transform: translateY(-3px) scale(1.012);
+      box-shadow: 
+        0 22px 36px -8px rgba(35, 48, 78, 0.22),
+        0 8px 16px -4px rgba(35, 48, 78, 0.12),
+        inset 0 4px 8px rgba(255, 255, 255, 1),
+        inset 0 -5px 10px rgba(180, 140, 190, 0.35);
+      border-color: #ffffff;
+    }
+
+    .acrylic-interactive:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    /* Tactile Soft Plush Inner Pillow */
+    .plush-pillow {
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        inset 0 6px 14px rgba(255, 255, 255, 0.85),
+        inset 0 -8px 16px rgba(0, 0, 0, 0.05),
+        0 4px 10px rgba(0, 0, 0, 0.04);
+    }
+
+    .plush-hero {
+      background: radial-gradient(circle at 30% 25%, #fff0f5 0%, #ffd6e0 45%, #f7cad0 75%, #f4cbb8 100%);
+    }
+
+    .plush-pink-panel {
+      background: radial-gradient(circle at 50% 20%, #ffffff 0%, #ffe4ec 45%, #ffd1df 85%, #fedbe8 100%);
+    }
+
+    .plush-whatsapp {
+      background: linear-gradient(135deg, #e8f8ed 0%, #d2f2dc 50%, #c2ebd0 100%);
+    }
+
+    .plush-website {
+      background: linear-gradient(135deg, #e6f2ff 0%, #d0e5ff 50%, #bfd9fc 100%);
+    }
+
+    /* Fluffy 3D Orb */
+    .fluffy-orb {
+      position: relative;
+      border-radius: 9999px;
+      box-shadow: 
+        0 8px 16px -2px rgba(0, 0, 0, 0.14),
+        inset 0 6px 12px rgba(255, 255, 255, 0.8),
+        inset 0 -6px 12px rgba(0, 0, 0, 0.10);
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .acrylic-interactive:hover .fluffy-orb {
+      transform: scale(1.08) rotate(-5deg);
+    }
+
+    /* Portrait Framing */
+    .ashu-portrait-crop {
+      width: 100%;
+      height: 100%;
+      background-image: url('https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg');
+      background-size: cover;
+      background-position: center 20%;
+      background-repeat: no-repeat;
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .portrait-lens:hover .ashu-portrait-crop {
+      transform: scale(1.06);
+    }
+
+    /* Floating Animations */
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(5deg); }
+    }
+    @keyframes floatReverse {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(7px) rotate(-6deg); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .float-slow { animation: floatSlow 4.5s ease-in-out infinite; }
+    .float-reverse { animation: floatReverse 5.2s ease-in-out infinite; }
+    .sparkle-anim { animation: pulseGlow 2.4s ease-in-out infinite; }
+
+    /* Tactile Pink Input Box */
+    .sim-input-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid rgba(244, 114, 182, 0.55);
+      border-radius: 22px;
+      padding: 6px 10px 6px 18px;
+      box-shadow: 
+        inset 0 2px 6px rgba(0, 0, 0, 0.04),
+        0 4px 14px rgba(244, 114, 182, 0.15);
+      transition: all 0.25s ease;
+    }
+
+    .sim-input-box:focus-within {
+      border-color: #ec4899;
+      background: #ffffff;
+      box-shadow: 
+        0 0 0 4px rgba(244, 114, 182, 0.25),
+        0 8px 24px rgba(236, 72, 153, 0.22);
+      transform: translateY(-1px);
+    }
+
+    /* Glowing Pink Gradient Button */
+    .sim-btn-glow {
+      position: relative;
+      background: linear-gradient(135deg, #f472b6 0%, #ec4899 45%, #8b5cf6 100%);
+      border: 2px solid #ffffff;
+      border-radius: 22px;
+      color: #ffffff;
+      box-shadow: 
+        0 8px 22px rgba(236, 72, 153, 0.38),
+        0 2px 6px rgba(139, 92, 246, 0.30),
+        inset 0 2px 4px rgba(255, 255, 255, 0.6);
+      overflow: hidden;
+      transition: all 0.22s ease;
+    }
+
+    .sim-btn-glow:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 12px 28px rgba(236, 72, 153, 0.48),
+        0 4px 10px rgba(139, 92, 246, 0.35);
+    }
+
+    .sim-btn-glow:active {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    .sim-btn-glow::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+      transform: skewX(-20deg);
+      animation: btnShine 3.5s infinite;
+    }
+    @keyframes btnShine { 0% { left: -100%; } 40%, 100% { left: 140%; } }
+
+    /* Radar Scanning Loader */
+    .radar-scan-box {
+      position: relative;
+      width: 90px;
+      height: 90px;
+      display: grid;
+      place-items: center;
+    }
+    .radar-scan-box::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(244, 114, 182, 0.35), transparent 70%);
+      animation: radarPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes radarPulse {
+      0%, 100% { transform: scale(0.88); opacity: 0.5; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+    .radar-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px dashed rgba(236, 72, 153, 0.7);
+      animation: spinRing 2.4s linear infinite;
+    }
+    .radar-ring.r2 {
+      inset: 10px;
+      border: 2px solid transparent;
+      border-top-color: #8b5cf6;
+      border-bottom-color: #ec4899;
+      animation: spinRing 1.6s linear infinite reverse;
+    }
+    @keyframes spinRing { to { transform: rotate(360deg); } }
+
+    /* Pairing Code Box */
+    .pairing-box {
+      position: relative;
+      background: linear-gradient(135deg, #ffffff 0%, #fff1f5 100%);
+      border: 3px dashed #f472b6;
+      border-radius: 24px;
+      box-shadow: 
+        0 10px 25px rgba(236, 72, 153, 0.18),
+        inset 0 3px 6px rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .pairing-box:hover {
+      border-color: #db2777;
+      transform: scale(1.02);
+      box-shadow: 0 14px 30px rgba(236, 72, 153, 0.28);
+    }
+
+    /* Terminal Console */
+    .terminal-console {
+      background: rgba(26, 27, 38, 0.92);
+      backdrop-filter: blur(12px);
+      border: 2px solid rgba(244, 114, 182, 0.35);
+      box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.4);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(244, 114, 182, 0.5); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ec4899; }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between relative selection:bg-pink-300 selection:text-slate-900">
+
+  <!-- Ambient Floating 3D Plush Stars & Hearts -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <!-- Peach Star Left -->
+    <div class="absolute top-[28%] left-[2%] md:left-[8%] float-slow drop-shadow-md">
+      <svg width="42" height="42" viewBox="0 0 48 48" fill="none">
+        <path d="M24 4L29.5 16.5L43 18.2L33 27.5L35.6 41L24 34.2L12.4 41L15 27.5L5 18.2L18.5 16.5L24 4Z" fill="url(#peachStar)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+        <defs>
+          <radialGradient id="peachStar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 14) scale(26)">
+            <stop stop-color="#FFE5D9"/>
+            <stop offset="1" stop-color="#F7A072"/>
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+    <!-- Plush Pink Heart Top Right -->
+    <div class="absolute top-[10%] right-[3%] md:right-[10%] float-reverse drop-shadow-md">
+      <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
+        <path d="M24 41C24 41 6 29.5 6 16.5C6 10.5 10.8 6 16.5 6C20 6 22.8 7.8 24 10.5C25.2 7.8 28 6 31.5 6C37.2 6 42 10.5 42 16.5C42 29.5 24 41 24 41Z" fill="url(#pinkHeart)" stroke="#fff" stroke-width="1.5"/>
+        <defs>
+          <radialGradient id="pinkHeart" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 14) scale(26)">
+            <stop stop-color="#FFD6E8"/>
+            <stop offset="1" stop-color="#E57A9E"/>
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+    <!-- Blue Plush Star Bottom Left -->
+    <div class="absolute bottom-[20%] left-[3%] md:left-[9%] float-reverse drop-shadow-md">
+      <svg width="46" height="46" viewBox="0 0 48 48" fill="none">
+        <path d="M24 4L29.5 16.5L43 18.2L33 27.5L35.6 41L24 34.2L12.4 41L15 27.5L5 18.2L18.5 16.5L24 4Z" fill="url(#blueStar)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>
+        <defs>
+          <radialGradient id="blueStar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(18 14) scale(26)">
+            <stop stop-color="#E0F2FE"/>
+            <stop offset="1" stop-color="#7BA7E1"/>
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+    <!-- Lavender Star Bottom Right -->
+    <div class="absolute bottom-[28%] right-[2%] md:right-[9%] float-slow drop-shadow-md">
+      <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
+        <path d="M24 2L28 19L45 24L28 29L24 46L20 29L3 24L20 19L24 2Z" fill="url(#lavStar)" stroke="#fff" stroke-width="1.5"/>
+        <defs>
+          <radialGradient id="lavStar" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(20 18) scale(24)">
+            <stop stop-color="#F3E8FF"/>
+            <stop offset="1" stop-color="#B794F4"/>
+          </radialGradient>
+        </defs>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Sticky Floating Pink Glass Top Navigation Bar -->
+  <nav class="sticky top-2 sm:top-3 z-40 mx-auto w-[96%] sm:w-[94%] max-w-4xl px-3 sm:px-4 py-2 rounded-full acrylic-frame flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 pl-1 cursor-pointer" onclick="playPopSound(880); showToast('🌸 Welcome to ASHU MD Hub!');">
+      <span class="text-2xl sm:text-3xl">🌸</span>
+      <div class="flex flex-col leading-none">
+        <span class="font-display font-bold text-slate-900 tracking-wide text-sm sm:text-base">ASHU MD</span>
+        <span class="text-[9px] font-bold text-pink-600 tracking-widest uppercase">WHATSAPP AUTOMATION HUB</span>
+      </div>
+    </div>
+
+    <!-- View Navigation Tabs -->
+    <div class="flex items-center gap-1 bg-white/60 p-1 rounded-full border border-white/80 shadow-inner flex-shrink-0">
+      <button onclick="switchMainTab('pair')" id="nav-pair" class="px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-pink-600 shadow-sm whitespace-nowrap">
+        <i class="fa-solid fa-bolt mr-1 text-pink-500"></i>Pair Code
+      </button>
+      <button onclick="switchMainTab('qr')" id="nav-qr" class="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all text-slate-700 hover:text-slate-900 whitespace-nowrap">
+        <i class="fa-solid fa-qrcode mr-1 text-purple-500"></i>QR Scan
+      </button>
+      <button onclick="switchMainTab('cluster')" id="nav-cluster" class="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all text-slate-700 hover:text-slate-900 whitespace-nowrap">
+        <i class="fa-solid fa-server mr-1 text-blue-500"></i>Cluster (27)
+      </button>
+      <button onclick="switchMainTab('telemetry')" id="nav-telemetry" class="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all text-slate-700 hover:text-slate-900 whitespace-nowrap">
+        <i class="fa-solid fa-microchip mr-1 text-emerald-500"></i>System
+      </button>
+    </div>
+
+    <!-- Quick Audio & Help Buttons -->
+    <div class="flex items-center gap-1.5 pr-1 flex-shrink-0">
+      <button onclick="toggleSound()" id="sound-btn" title="Toggle UI Sounds" class="w-8 h-8 rounded-full bg-white/70 hover:bg-white border border-white flex items-center justify-center text-slate-700 hover:text-pink-600 shadow-sm transition-transform active:scale-90">
+        <i id="sound-icon" class="fa-solid fa-volume-high text-xs"></i>
+      </button>
+      <a href="https://whatsapp.com/channel/0029VbDzLTD1iUxe8Hsv1D0M" target="_blank" rel="noopener noreferrer" title="Official Channel" class="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center shadow-sm transition-transform active:scale-90">
+        <i class="fa-brands fa-whatsapp text-sm"></i>
+      </a>
+    </div>
+  </nav>
+
+  <main class="relative z-10 w-full max-w-4xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-12 flex-grow space-y-6">
+
+    <!-- ================================================================= -->
+    <!-- HERO PROFILE SECTION (Portrait Lens + Bio Card)                   -->
+    <!-- ================================================================= -->
+    <section class="relative flex flex-col md:flex-row items-center pt-2 pb-2">
+      <!-- 3D Circular Glass Frame with Ashu MD Menu Photo -->
+      <div class="portrait-lens relative z-20 w-44 h-44 sm:w-56 sm:h-56 md:w-60 md:h-60 rounded-full acrylic-frame p-2 sm:p-2.5 cursor-pointer flex-shrink-0 shadow-2xl group" title="ASHU MD Profile">
+        <div class="w-full h-full rounded-full overflow-hidden relative border-2 border-white/80 shadow-inner bg-gradient-to-b from-pink-100 to-blue-100">
+          <div class="ashu-portrait-crop" role="img" aria-label="ASHU MD Avatar"></div>
+          <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-white/40 pointer-events-none rounded-full"></div>
+          <div class="absolute bottom-3 inset-x-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <span class="bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-semibold px-3 py-1 rounded-full shadow-lg">
+              🌸 ASHU MD
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Soft Pink Plush Bio Card -->
+      <div class="relative z-10 w-full md:-ml-10 mt-4 md:mt-0 acrylic-frame rounded-[32px] sm:rounded-[38px] p-2.5 sm:p-4">
+        <div class="plush-pillow plush-hero rounded-[24px] sm:rounded-[28px] px-5 py-5 sm:pl-14 sm:pr-8 sm:py-7 text-center md:text-left space-y-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 border border-white text-[11px] font-bold text-pink-700 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>27-NODE MEGA CLUSTER ACTIVE</span>
+          </div>
+          <h1 class="title-3d-rose text-2xl sm:text-4xl font-extrabold tracking-tight">
+            ASHU MD BOT
+          </h1>
+          <p class="text-xs sm:text-base font-semibold text-slate-800 leading-relaxed">
+            Ultra-fast Baileys multi-device WhatsApp automation bot created by <strong class="text-pink-700">Ashu</strong>. Connect your WhatsApp in seconds with 24/7 uptime!
+          </p>
+
+          <div class="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+            <span class="px-3 py-1 rounded-full bg-white/80 text-[11px] font-bold text-slate-700 border border-pink-200">
+              <i class="fa-solid fa-shield-halved text-emerald-600 mr-1"></i>Zero-Ban Safe
+            </span>
+            <span class="px-3 py-1 rounded-full bg-white/80 text-[11px] font-bold text-slate-700 border border-pink-200">
+              <i class="fa-solid fa-bolt text-amber-500 mr-1"></i>Ultra-Sonic Speed
+            </span>
+            <span class="px-3 py-1 rounded-full bg-white/80 text-[11px] font-bold text-slate-700 border border-pink-200">
+              <i class="fa-solid fa-rotate text-sky-500 mr-1"></i>24/7 Anti-Sleep
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 1: PAIRING CODE TAB (MAIN)                                   -->
+    <!-- ================================================================= -->
+    <div id="view-pair" class="space-y-5">
+      <div class="acrylic-frame rounded-[32px] sm:rounded-[38px] p-3 sm:p-5 shadow-2xl">
+        <div class="plush-pillow plush-pink-panel rounded-[26px] sm:rounded-[30px] p-4 sm:p-6 space-y-4">
+          
+          <div class="flex items-center justify-between pb-2 border-b border-pink-200">
+            <div class="flex items-center gap-2">
+              <span class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-pink-400 to-purple-500 text-white flex items-center justify-center shadow-md">
+                <i class="fa-solid fa-key text-sm"></i>
+              </span>
+              <div>
+                <div class="text-xs font-extrabold text-slate-900 tracking-tight">Generate Pairing Code</div>
+                <div class="text-[10px] font-bold text-pink-700 uppercase">Dedicated 27-Node Routing</div>
+              </div>
+            </div>
+            <div id="routingModePill" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
+              <i class="fa-solid fa-circle-check mr-1"></i>Smart Auto (27 Nodes)
+            </div>
+          </div>
+
+          <!-- Phone Number Input -->
+          <div class="space-y-3">
+            <div class="sim-input-box">
+              <i class="fa-solid fa-phone text-pink-500 mr-2.5 text-sm sm:text-base"></i>
+              <input type="tel" id="phoneInput" placeholder="Enter WhatsApp Number (e.g. 923001234567)..." autocomplete="off" class="w-full bg-transparent border-none outline-none font-mono-code font-bold text-sm sm:text-base text-slate-900 placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium">
+              <button type="button" onclick="clearPhoneInput()" class="text-slate-400 hover:text-pink-600 px-2 py-1 transition-colors">
+                <i class="fa-solid fa-circle-xmark"></i>
+              </button>
+            </div>
+
+            <!-- Quick Format Helpers -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono-code font-bold scrollbar-none">
+              <span class="text-[10px] font-sans font-bold text-slate-600 uppercase pr-1 flex-shrink-0">Quick Format:</span>
+              <button type="button" onclick="formatPhonePrefix('92')" class="px-2.5 py-1 rounded-full bg-white/80 hover:bg-white text-slate-700 border border-pink-200 shadow-sm transition hover:scale-105 whitespace-nowrap">🇵🇰 Pakistan (+92)</button>
+              <button type="button" onclick="formatPhonePrefix('91')" class="px-2.5 py-1 rounded-full bg-white/80 hover:bg-white text-slate-700 border border-pink-200 shadow-sm transition hover:scale-105 whitespace-nowrap">🇮🇳 India (+91)</button>
+              <button type="button" onclick="formatPhonePrefix('1')" class="px-2.5 py-1 rounded-full bg-white/80 hover:bg-white text-slate-700 border border-pink-200 shadow-sm transition hover:scale-105 whitespace-nowrap">🇺🇸 USA (+1)</button>
+              <button type="button" onclick="formatPhonePrefix('44')" class="px-2.5 py-1 rounded-full bg-white/80 hover:bg-white text-slate-700 border border-pink-200 shadow-sm transition hover:scale-105 whitespace-nowrap">🇬🇧 UK (+44)</button>
+            </div>
+
+            <!-- Get Code Button -->
+            <button type="button" id="pairBtn" class="sim-btn-glow w-full py-3.5 px-4 font-display font-bold text-sm sm:text-base tracking-wider flex items-center justify-center gap-2 cursor-pointer">
+              <span id="pairBtnText" class="flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-amber-300"></i>
+                <span>GET PAIRING CODE</span>
+              </span>
+            </button>
+          </div>
+
+          <!-- Radar Scanner Loader -->
+          <div id="pairingLoader" class="hidden flex-col items-center justify-center py-5 space-y-3">
+            <div class="radar-scan-box">
+              <div class="radar-ring"></div>
+              <div class="radar-ring r2"></div>
+              <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-xl bg-pink-100 flex items-center justify-center">
+                <img src="https://i.pinimg.com/1200x/a2/56/ae/a256ae189d38cafb153971331dd50a4d.jpg" alt="ASHU MD" class="w-full h-full object-cover">
+              </div>
+            </div>
+            <div class="text-center space-y-1 px-4">
+              <div id="loaderStatusText" class="font-display font-bold text-xs sm:text-sm text-pink-700 tracking-wider uppercase">
+                Connecting to WhatsApp Cluster Node...
+              </div>
+              <div class="w-56 h-2 rounded-full bg-white/80 overflow-hidden mx-auto shadow-inner border border-pink-200 mt-1">
+                <div id="pairingProgressBar" class="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-emerald-400 rounded-full transition-all duration-300" style="width: 25%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pairing Code Display Area -->
+          <div id="codeResultArea" class="hidden space-y-3 pt-2">
+            <div class="pairing-box p-4 sm:p-5 text-center">
+              <div class="text-[10px] font-extrabold uppercase tracking-widest text-pink-600 mb-1">
+                Your 8-Digit WhatsApp Pairing Code
+              </div>
+              <div id="codeDisplay" class="font-mono-code font-extrabold text-2xl sm:text-4xl tracking-widest text-slate-900 py-1">
+                WAITING...
+              </div>
+              <div id="copyFeedback" class="text-xs font-bold text-pink-700 mt-1 flex items-center justify-center gap-1">
+                <i class="fa-regular fa-copy"></i>
+                <span>Tap anywhere to copy</span>
+              </div>
+            </div>
+
+            <!-- Connection Status Box -->
+            <div id="connStatusBox" class="hidden p-3 rounded-2xl border text-xs font-bold flex items-center gap-2">
+              <i id="connStatusIcon" class="fa-solid fa-spinner fa-spin text-sm"></i>
+              <span id="connStatusMsg" class="leading-relaxed">Connecting...</span>
+            </div>
+          </div>
+
+          <!-- Instructions Card -->
+          <div class="bg-white/70 p-3.5 rounded-2xl border border-pink-200 space-y-2 text-xs font-semibold text-slate-700">
+            <div class="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
+              <i class="fa-solid fa-circle-info text-pink-500"></i>
+              <span>How to Link Your WhatsApp:</span>
+            </div>
+            <ol class="list-decimal list-inside space-y-1 text-slate-600 text-[11px] leading-relaxed">
+              <li>Apna WhatsApp open karein aur <strong>Settings ➔ Linked Devices</strong> par click karein.</li>
+              <li><strong>Link with phone number instead</strong> option choose karein.</li>
+              <li>Upar diya gaya 8-character pairing code WhatsApp mein enter karein.</li>
+              <li>Bot automatically connect hokar active ho jayega!</li>
+            </ol>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 2: QR CODE SCAN TAB                                          -->
+    <!-- ================================================================= -->
+    <div id="view-qr" class="hidden space-y-5">
+      <div class="acrylic-frame rounded-[32px] sm:rounded-[38px] p-4 sm:p-6 shadow-2xl text-center">
+        <div class="plush-pillow plush-pink-panel rounded-[26px] p-6 space-y-4 max-w-md mx-auto">
+          <div class="space-y-1">
+            <span class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-400 to-pink-500 text-white inline-flex items-center justify-center text-xl shadow-md">
+              <i class="fa-solid fa-qrcode"></i>
+            </span>
+            <h2 class="text-xl font-extrabold text-slate-900">Scan QR Code</h2>
+            <p class="text-xs font-semibold text-slate-600">Scan this QR code from WhatsApp Linked Devices scanner</p>
+          </div>
+
+          <div id="qrDisplayContainer" class="hidden bg-white p-4 rounded-3xl border-2 border-pink-300 shadow-inner inline-block mx-auto">
+            <img id="qrImageElement" src="" alt="WhatsApp QR Code" class="w-56 h-56 mx-auto object-contain">
+          </div>
+
+          <div>
+            <button type="button" id="qrGenBtn" class="sim-btn-glow py-3 px-6 font-display font-bold text-sm tracking-wider inline-flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span id="qrGenBtnText">LOAD QR CODE</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 3: 27-NODE CLUSTER TAB                                       -->
+    <!-- ================================================================= -->
+    <div id="view-cluster" class="hidden space-y-5">
+      <div class="acrylic-frame rounded-[32px] sm:rounded-[38px] p-4 sm:p-5 shadow-2xl space-y-4">
+        
+        <!-- Cluster Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-pink-200 pb-3">
+          <div>
+            <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-network-wired text-pink-500"></i>
+              <span>27-Node Multi-Server Cluster</span>
+            </h2>
+            <p class="text-xs font-semibold text-slate-600">Smart load-balancer distributes traffic to prevent sleeps and timeouts</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="clusterStatusBadge" class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-300">
+              Pinging Nodes...
+            </span>
+            <button onclick="pingClusterHealth()" class="px-3 py-1 rounded-full bg-white text-slate-700 hover:text-pink-600 border border-pink-200 text-xs font-bold shadow-sm transition">
+              <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Smart Auto Routing Button -->
+        <div id="serverCardAuto" onclick="setServerRouting('auto')" class="acrylic-frame acrylic-interactive p-3.5 rounded-2xl cursor-pointer border-2 border-pink-400 bg-white/80 flex items-center justify-between shadow-sm">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow">
+              <i class="fa-solid fa-shuffle"></i>
+            </div>
+            <div>
+              <div class="text-sm font-extrabold text-slate-900">Smart Auto Load-Balancer (Recommended)</div>
+              <div class="text-[11px] font-semibold text-slate-600">Routes to the fastest available node across 26 Heroku + 1 Railway</div>
+            </div>
+          </div>
+          <span id="checkAuto" class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
+            <i class="fa-solid fa-check"></i>
+          </span>
+        </div>
+
+        <!-- Server Grid (Nodes 1 to 28 + Railway) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5" id="clusterServersGrid">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VIEW 4: SYSTEM TELEMETRY & LIVE CONSOLE                           -->
+    <!-- ================================================================= -->
+    <div id="view-telemetry" class="hidden space-y-5">
+      <div class="acrylic-frame rounded-[32px] sm:rounded-[38px] p-4 sm:p-5 shadow-2xl space-y-4">
+        
+        <div class="flex items-center justify-between border-b border-pink-200 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-sm shadow">
+              <i class="fa-solid fa-terminal"></i>
+            </span>
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900">System Telemetry &amp; Logs</h2>
+              <div class="text-[10px] font-bold text-slate-500 uppercase">Real-Time Event Stream</div>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
+            ● Online &amp; Listening
+          </span>
+        </div>
+
+        <!-- System Stats Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-white/70 p-3 rounded-2xl border border-pink-200 text-center">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Framework</div>
+            <div class="text-xs sm:text-sm font-extrabold text-slate-900 mt-0.5">Baileys MD</div>
+          </div>
+          <div class="bg-white/70 p-3 rounded-2xl border border-pink-200 text-center">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Battery / Power</div>
+            <div id="batteryLevelDisplay" class="text-xs sm:text-sm font-extrabold text-emerald-700 mt-0.5">100% ⚡ AC</div>
+          </div>
+          <div class="bg-white/70 p-3 rounded-2xl border border-pink-200 text-center">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Paired Sessions</div>
+            <div id="clusterTotalActive" class="text-xs sm:text-sm font-extrabold text-pink-700 mt-0.5">Active</div>
+          </div>
+          <div class="bg-white/70 p-3 rounded-2xl border border-pink-200 text-center">
+            <div class="text-[10px] font-bold text-slate-500 uppercase">Bot Creator</div>
+            <div class="text-xs sm:text-sm font-extrabold text-purple-700 mt-0.5">Ashu</div>
+          </div>
+        </div>
+
+        <!-- Terminal Output -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>Live Terminal:</span>
+            <button onclick="document.getElementById('terminalOutput').innerHTML='';" class="text-[10px] text-pink-600 hover:underline">
+              Clear Logs
+            </button>
+          </div>
+          <div id="terminalOutput" class="terminal-console rounded-2xl p-3.5 h-44 overflow-y-auto text-[11px] text-slate-200 space-y-1">
+            <div class="text-pink-400 font-semibold">[System] 🌸 ASHU MD Dashboard Initialized.</div>
+            <div class="text-emerald-400">[Ready] Multi-Node Cluster connected and ready.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Sticky Footer -->
+  <footer class="relative z-10 text-center pb-6 px-4">
+    <div class="inline-flex flex-wrap items-center justify-center gap-2.5 px-5 py-2 rounded-full bg-white/70 backdrop-blur-md border border-white/90 text-xs font-bold text-slate-700 shadow-sm">
+      <span>🌸 <strong>ASHU MD</strong></span>
+      <span>•</span>
+      <span>Created by <strong>Ashu</strong></span>
+      <span>•</span>
+      <a href="https://whatsapp.com/channel/0029VbDzLTD1iUxe8Hsv1D0M" target="_blank" rel="noopener noreferrer" class="text-emerald-700 hover:underline">
+        <i class="fa-brands fa-whatsapp mr-1"></i>Official Channel
+      </a>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Pill -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 pointer-events-none opacity-0 translate-y-4 transition-all duration-300">
+    <div class="acrylic-frame rounded-full px-5 py-2.5 bg-slate-900/90 text-white text-xs font-bold shadow-xl flex items-center gap-2">
+      <i class="fa-solid fa-circle-check text-pink-400 text-sm"></i>
+      <span id="toast-msg">Copied to clipboard!</span>
+    </div>
+  </div>
+
+  <!-- =================================================================== -->
+  <!-- JAVASCRIPT: CLUSTER ARCHITECTURE, PAIRING ENGINE & SOUND EFFECTS   -->
+  <!-- =================================================================== -->
+  <script>
+    // --- Web Audio Synthesizer (Pink Tactile Feedback) ---
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function playPopSound(freq = 520) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.35, audioCtx.currentTime + 0.065);
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.07);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.075);
+      } catch (e) {}
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      icon.className = soundEnabled ? 'fa-solid fa-volume-high text-xs text-pink-600' : 'fa-solid fa-volume-xmark text-xs text-slate-400';
+      showToast(soundEnabled ? 'Tactile Sounds On' : 'Sounds Muted');
+      if (soundEnabled) playPopSound(660);
+    }
+
+    // --- Toast Notification Helper ---
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-4');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-4');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2600);
+    }
+
+    // --- 27-Node Multi-Server Cluster Definition ---
+    const CLUSTER = {
+      s1: { id: 's1', name: 'Node 1 (Heroku-1)', short: 'Heroku-1', url: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s2: { id: 's2', name: 'Node 2 (Heroku-2)', short: 'Heroku-2', url: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s3: { id: 's3', name: 'Node 3 (Heroku-3)', short: 'Heroku-3', url: 'https://saqibbot3-bb2b46aa1cb4.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s4: { id: 's4', name: 'Node 4 (Heroku-4)', short: 'Heroku-4', url: 'https://saqibot4-1469f73b3d77.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s5: { id: 's5', name: 'Node 5 (Heroku-5)', short: 'Heroku-5', url: 'https://saqibbot5-5ffa090fe31f.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s6: { id: 's6', name: 'Node 6 (Heroku-6)', short: 'Heroku-6', url: 'https://saqibot6-061b6d17645d.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s7: { id: 's7', name: 'Node 7 (Heroku-7)', short: 'Heroku-7', url: 'https://saqibot7-b9d00e67a587.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s8: { id: 's8', name: 'Node 8 (Heroku-8)', short: 'Heroku-8', url: 'https://saqibbot8-f71661d9a2d8.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s9: { id: 's9', name: 'Node 9 (Heroku-9)', short: 'Heroku-9', url: 'https://saqibot9-18357eb4eaae.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s10: { id: 's10', name: 'Node 10 (Heroku-10)', short: 'Heroku-10', url: 'https://saqibot10-aa548e6ef57f.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s11: { id: 's11', name: 'Node 11 (Heroku-11)', short: 'Heroku-11', url: 'https://saqibbot11-815563078799.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s12: { id: 's12', name: 'Node 12 (Heroku-12)', short: 'Heroku-12', url: 'https://saqibbot12-2fb338ff529a.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s13: { id: 's13', name: 'Node 13 (Heroku-13)', short: 'Heroku-13', url: 'https://saqibot13-392b066b37a5.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s14: { id: 's14', name: 'Node 14 (Heroku-14)', short: 'Heroku-14', url: 'https://saqibbot14-d84e8d59500a.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s16: { id: 's16', name: 'Node 16 (Heroku-16)', short: 'Heroku-16', url: 'https://saqibbot16-b071c813d801.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s17: { id: 's17', name: 'Node 17 (Heroku-17)', short: 'Heroku-17', url: 'https://saqibot17-a471970ef223.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s18: { id: 's18', name: 'Node 18 (Heroku-18)', short: 'Heroku-18', url: 'https://saqibbot18-45854000f60b.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s19: { id: 's19', name: 'Node 19 (Heroku-19)', short: 'Heroku-19', url: 'https://saqibbot19-bb306a89a5f4.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s20: { id: 's20', name: 'Node 20 (Heroku-20)', short: 'Heroku-20', url: 'https://saqibbot20-317bb68e4db0.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s22: { id: 's22', name: 'Node 22 (Heroku-22)', short: 'Heroku-22', url: 'https://saqibbot22-9318c2de0250.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s23: { id: 's23', name: 'Node 23 (Heroku-23)', short: 'Heroku-23', url: 'https://saqibot23-1f4bec48d0f2.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s25a: { id: 's25a', name: 'Node 25A (Heroku-25A)', short: 'Heroku-25A', url: 'https://saqibbot25-46c4cf949a77.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s25b: { id: 's25b', name: 'Node 25B (Heroku-25B)', short: 'Heroku-25B', url: 'https://saqibot25-0974df36edd8.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s26: { id: 's26', name: 'Node 26 (Heroku-26)', short: 'Heroku-26', url: 'https://saqibot26-69a8011cc819.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s27: { id: 's27', name: 'Node 27 (Heroku-27)', short: 'Heroku-27', url: 'https://saqibot27-1c1d295781fa.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      s28: { id: 's28', name: 'Node 28 (Heroku-28)', short: 'Heroku-28', url: 'https://saqibbot28-658e7de676c8.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
+      railway: { id: 'railway', name: 'Railway (Hub)', short: 'Railway', url: 'https://web-production-08da5300.up.railway.app', type: 'Railway', online: true, active: 0, ping: null }
+    };
+
+    let selectedServerMode = 'auto';
+    let autoCounter = 0;
+
+    // Build the Cluster Grid Buttons
+    function renderClusterGrid() {
+      const grid = document.getElementById('clusterServersGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      Object.entries(CLUSTER).forEach(([key, node]) => {
+        const card = document.createElement('div');
+        const isRailway = (key === 'railway');
+        card.id = 'serverCard_' + key;
+        card.className = `acrylic-frame acrylic-interactive p-2.5 rounded-2xl cursor-pointer bg-white/70 border border-white hover:border-pink-300 text-left transition ${isRailway ? 'col-span-2 sm:col-span-1' : ''}`;
+        card.onclick = () => setServerRouting(key);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800">${node.short}</span>
+            <span id="${key}Dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="flex items-center justify-between text-[10px] mt-1 text-slate-500 font-mono-code">
+            <span id="${key}Ping">--ms</span>
+            <span id="${key}Capacity" class="text-emerald-600 font-bold">Online</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function setServerRouting(mode) {
+      playPopSound(620);
+      selectedServerMode = mode;
+      const btnAuto = document.getElementById('serverCardAuto');
+      const checkAuto = document.getElementById('checkAuto');
+      const routingPill = document.getElementById('routingModePill');
+
+      if (mode === 'auto') {
+        if (btnAuto) btnAuto.className = 'acrylic-frame acrylic-interactive p-3.5 rounded-2xl cursor-pointer border-2 border-pink-500 bg-white shadow-md flex items-center justify-between';
+        if (checkAuto) checkAuto.classList.remove('hidden');
+        if (routingPill) routingPill.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i>Smart Auto (27 Nodes)';
+        addLog('⚡ Load-balancer: Auto-routing distributed across all 27 cluster nodes.', 'info');
+      } else if (CLUSTER[mode]) {
+        if (btnAuto) btnAuto.className = 'acrylic-frame acrylic-interactive p-3.5 rounded-2xl cursor-pointer border border-pink-200 bg-white/70 flex items-center justify-between';
+        if (checkAuto) checkAuto.classList.add('hidden');
+        if (routingPill) routingPill.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>Locked: ${CLUSTER[mode].short}`;
+        addLog(`📍 Server locked to ${CLUSTER[mode].name}`, 'info');
+      }
+
+      Object.keys(CLUSTER).forEach(k => {
+        const el = document.getElementById('serverCard_' + k);
+        if (el) {
+          if (k === mode) {
+            el.classList.add('border-pink-500', 'bg-white', 'shadow-md');
+          } else {
+            el.classList.remove('border-pink-500', 'bg-white', 'shadow-md');
+          }
+        }
+      });
+    }
+
+    function getTargetServerNode() {
+      if (selectedServerMode !== 'auto' && CLUSTER[selectedServerMode]) {
+        const node = CLUSTER[selectedServerMode];
+        if (node.online) return node;
+      }
+      const onlineNodes = Object.values(CLUSTER).filter(n => n.online);
+      if (onlineNodes.length === 0) return CLUSTER.s1;
+      autoCounter++;
+      return onlineNodes[autoCounter % onlineNodes.length];
+    }
+
+    function getAlternativeServerNode(currentNode) {
+      const candidates = Object.values(CLUSTER).filter(n => n.id !== currentNode.id && n.online);
+      return candidates.length > 0 ? candidates[0] : CLUSTER.railway;
+    }
+
+    // Ping Cluster Nodes
+    let isPinging = false;
+    async function pingClusterHealth() {
+      if (isPinging) return;
+      isPinging = true;
+
+      const keys = Object.keys(CLUSTER);
+      let onlineCount = 0;
+      let totalPaired = 0;
+
+      const promises = keys.map(async (key) => {
+        const node = CLUSTER[key];
+        const t0 = performance.now();
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 12000);
+
+        try {
+          const res = await fetch(node.url + '/health', { cache: 'no-store', signal: controller.signal });
+          clearTimeout(tid);
+          const latency = Math.round(performance.now() - t0);
+
+          if (res.ok) {
+            const data = await res.json();
+            node.online = true;
+            node.ping = latency;
+            const active = data.activeSessions || data.pairedSessions || 0;
+            node.active = active;
+            totalPaired += active;
+            onlineCount++;
+
+            const dot = document.getElementById(key + 'Dot');
+            const pingEl = document.getElementById(key + 'Ping');
+            const capEl = document.getElementById(key + 'Capacity');
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            if (pingEl) pingEl.textContent = latency + 'ms';
+            if (capEl) capEl.textContent = 'Online';
+          } else {
+            throw new Error('Status ' + res.status);
+          }
+        } catch (e) {
+          clearTimeout(tid);
+          node.online = false;
+          node.ping = null;
+          const dot = document.getElementById(key + 'Dot');
+          const pingEl = document.getElementById(key + 'Ping');
+          const capEl = document.getElementById(key + 'Capacity');
+          if (dot) dot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-pulse';
+          if (pingEl) pingEl.textContent = '--ms';
+          if (capEl) capEl.textContent = 'Offline';
+        }
+      });
+
+      await Promise.allSettled(promises);
+      isPinging = false;
+
+      const badge = document.getElementById('clusterStatusBadge');
+      if (badge) badge.textContent = `${onlineCount}/${keys.length} Online • ${totalPaired} Active`;
+      const activeEl = document.getElementById('clusterTotalActive');
+      if (activeEl) activeEl.textContent = `${totalPaired} Active`;
+    }
+
+    // --- Tab Navigation ---
+    function switchMainTab(tab) {
+      playPopSound(580);
+      const tabs = ['pair', 'qr', 'cluster', 'telemetry'];
+      tabs.forEach(t => {
+        const view = document.getElementById('view-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if (!view || !nav) return;
+        if (t === tab) {
+          view.classList.remove('hidden');
+          nav.className = 'px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-white text-pink-600 shadow-sm whitespace-nowrap';
+        } else {
+          view.classList.add('hidden');
+          nav.className = 'px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all text-slate-700 hover:text-slate-900 whitespace-nowrap';
+        }
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- Phone Input Helpers ---
+    function formatPhonePrefix(prefix) {
+      playPopSound(540);
+      const input = document.getElementById('phoneInput');
+      input.value = prefix;
+      input.focus();
+    }
+
+    function clearPhoneInput() {
+      playPopSound(420);
+      const input = document.getElementById('phoneInput');
+      input.value = '';
+      input.focus();
+    }
+
+    // --- Terminal Log Helper ---
+    function addLog(msg, type = 'info') {
+      const out = document.getElementById('terminalOutput');
+      if (!out) return;
+      const el = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      if (type === 'success') el.className = 'text-emerald-400 font-semibold';
+      else if (type === 'error') el.className = 'text-rose-400 font-semibold';
+      else el.className = 'text-pink-300';
+      el.textContent = `[${time}] ${msg}`;
+      out.appendChild(el);
+      out.scrollTop = out.scrollHeight;
+    }
+
+    // --- Pairing Code Engine ---
+    let pairPoll = null;
+
+    document.getElementById('pairBtn').addEventListener('click', async () => {
+      playPopSound(720);
+      const phoneInput = document.getElementById('phoneInput');
+      let number = phoneInput.value.replace(/[^0-9]/g, '');
+
+      if (number.startsWith('03') && number.length === 11) number = '92' + number.slice(1);
+      else if (number.startsWith('3') && number.length === 10) number = '92' + number;
+
+      if (!number || number.length < 10) {
+        showToast('Valid WhatsApp number enter karein (e.g. 923001234567)');
+        return;
+      }
+
+      phoneInput.value = number;
+      const pairBtn = document.getElementById('pairBtn');
+      const pairBtnText = document.getElementById('pairBtnText');
+      const loader = document.getElementById('pairingLoader');
+      const codeResultArea = document.getElementById('codeResultArea');
+      const codeDisplay = document.getElementById('codeDisplay');
+      const connStatusBox = document.getElementById('connStatusBox');
+      const connStatusMsg = document.getElementById('connStatusMsg');
+      const connStatusIcon = document.getElementById('connStatusIcon');
+
+      pairBtn.disabled = true;
+      pairBtnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+      loader.classList.remove('hidden');
+      loader.classList.add('flex');
+      codeResultArea.classList.remove('hidden');
+      codeDisplay.textContent = 'CONNECTING...';
+
+      connStatusBox.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200');
+      connStatusBox.classList.add('bg-pink-50', 'text-pink-800', 'border-pink-200');
+      connStatusIcon.className = 'fa-solid fa-spinner fa-spin text-pink-600';
+      connStatusMsg.textContent = `Dispatching pairing request for +${number}...`;
+
+      let targetNode = getTargetServerNode();
+      addLog(`⚡ Connecting to cluster node: ${targetNode.name}...`, 'info');
+
+      let data = null;
+      let usedNode = targetNode;
+
+      try {
+        const res = await fetch(targetNode.url + '/api/pair?number=' + encodeURIComponent(number));
+        data = await res.json();
+      } catch (err1) {
+        const backupNode = getAlternativeServerNode(targetNode);
+        addLog(`⚠️ ${targetNode.short} unresponsive, failover to ${backupNode.name}...`, 'info');
+        usedNode = backupNode;
+        try {
+          const res = await fetch(backupNode.url + '/api/pair?number=' + encodeURIComponent(number));
+          data = await res.json();
+        } catch (err2) {
+          addLog(`❌ Cluster Error: ${err1.message}`, 'error');
+        }
+      }
+
+      loader.classList.add('hidden');
+      loader.classList.remove('flex');
+
+      if (data && data.success && data.code) {
+        playPopSound(880);
+        codeDisplay.textContent = data.code;
+        pairBtnText.innerHTML = '<i class="fa-solid fa-check"></i> Code Generated';
+        pairBtn.disabled = false;
+        showToast('Pairing Code Ready: ' + data.code);
+        addLog(`🔑 [${usedNode.short}] Pairing Code Generated: ${data.code}`, 'success');
+        connStatusMsg.textContent = `Pairing Code ready on ${usedNode.short}! WhatsApp Linked Devices mein enter karein.`;
+
+        // Start Polling for Successful Pairing
+        if (pairPoll) clearInterval(pairPoll);
+        pairPoll = setInterval(async () => {
+          try {
+            const sRes = await fetch(usedNode.url + '/api/pair/status?number=' + encodeURIComponent(number));
+            const sData = await sRes.json();
+            if (sData.connected) {
+              clearInterval(pairPoll);
+              onPairingSuccess(number, usedNode.short);
+            }
+          } catch (e) {}
+        }, 2500);
+
+        try {
+          const nodeSocket = io(usedNode.url, { transports: ['websocket', 'polling'] });
+          nodeSocket.on('connection-status-' + number, (st) => {
+            if (st && st.connected) {
+              if (pairPoll) clearInterval(pairPoll);
+              onPairingSuccess(number, usedNode.short);
+            }
+          });
+        } catch (e) {}
+
+      } else if (data && data.isConnected) {
+        onPairingSuccess(number, usedNode.short);
+      } else {
+        pairBtn.disabled = false;
+        pairBtnText.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Try Again';
+        codeDisplay.textContent = 'FAILED';
+        connStatusBox.classList.add('bg-rose-50', 'text-rose-800', 'border-rose-200');
+        connStatusIcon.className = 'fa-solid fa-triangle-exclamation text-rose-500';
+        connStatusMsg.textContent = data?.error || 'Failed to generate code. Please try again.';
+        addLog(`❌ Error: ${data?.error || 'Unknown error'}`, 'error');
+      }
+    });
+
+    function onPairingSuccess(num, serverName) {
+      playPopSound(950);
+      const connStatusBox = document.getElementById('connStatusBox');
+      const connStatusMsg = document.getElementById('connStatusMsg');
+      const connStatusIcon = document.getElementById('connStatusIcon');
+      connStatusBox.classList.remove('bg-pink-50', 'text-pink-800', 'border-pink-200');
+      connStatusBox.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-200');
+      connStatusIcon.className = 'fa-solid fa-circle-check text-emerald-600';
+      connStatusMsg.textContent = `🎉 Connected! ASHU MD is active on ${serverName} for +${num}!`;
+      document.getElementById('pairBtnText').textContent = '✅ Connected';
+      document.getElementById('pairBtn').disabled = true;
+      showToast('🎉 WhatsApp Connected Successfully!');
+      addLog(`✅ WhatsApp Connected successfully via ${serverName} for +${num}!`, 'success');
+    }
+
+    // Tap to Copy Code
+    document.querySelector('.pairing-box').addEventListener('click', () => {
+      const code = document.getElementById('codeDisplay').textContent.trim();
+      if (code && code !== 'WAITING...' && code !== 'CONNECTING...' && code !== 'FAILED') {
+        playPopSound(820);
+        navigator.clipboard.writeText(code).then(() => {
+          showToast('Copied: ' + code);
+          const feedback = document.getElementById('copyFeedback');
+          feedback.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i> <span class="text-emerald-700">Copied to Clipboard!</span>';
+          setTimeout(() => {
+            feedback.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Tap anywhere to copy</span>';
+          }, 2500);
+        }).catch(() => {});
+      }
+    });
+
+    // --- QR Code Engine ---
+    document.getElementById('qrGenBtn').addEventListener('click', async () => {
+      playPopSound(680);
+      const btn = document.getElementById('qrGenBtn');
+      const text = document.getElementById('qrGenBtnText');
+      const container = document.getElementById('qrDisplayContainer');
+      const img = document.getElementById('qrImageElement');
+
+      btn.disabled = true;
+      text.textContent = 'Generating QR...';
+
+      let targetNode = getTargetServerNode();
+      addLog(`📷 Requesting QR code via ${targetNode.name}...`);
+
+      try {
+        const res = await fetch(targetNode.url + '/api/qr/start');
+        const data = await res.json();
+        if (data && data.success && data.qr) {
+          playPopSound(840);
+          img.src = data.qr;
+          container.classList.remove('hidden');
+          text.textContent = 'Refresh QR';
+          btn.disabled = false;
+          showToast('QR Code Loaded!');
+          addLog(`📷 QR Code loaded on ${targetNode.short}! Scan from WhatsApp.`, 'success');
+        } else {
+          throw new Error(data?.error || 'Failed to load QR');
+        }
+      } catch (err) {
+        addLog(`❌ QR Error: ${err.message}`, 'error');
+        btn.disabled = false;
+        text.textContent = 'Try Again';
+      }
+    });
+
+    // --- Battery Telemetry ---
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then((battery) => {
+        function updateBat() {
+          const level = Math.round(battery.level * 100);
+          const charging = battery.charging;
+          document.getElementById('batteryLevelDisplay').textContent = `${level}% ${charging ? '⚡ Charging' : '🔋'}`;
+        }
+        updateBat();
+        battery.addEventListener('levelchange', updateBat);
+        battery.addEventListener('chargingchange', updateBat);
+      });
+    }
+
+    // --- Page Initialization ---
+    window.addEventListener('DOMContentLoaded', () => {
+      renderClusterGrid();
+      pingClusterHealth();
+      setInterval(pingClusterHealth, 15000);
+      addLog('🌸 ASHU MD Dashboard ready with 27-node cluster.', 'info');
+    });
+  </script>
+</body>
+</html>

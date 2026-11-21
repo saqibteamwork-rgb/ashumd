@@ -1,0 +1,16 @@
+# Railway Nixpacks Configuration for MR SAQIB MD
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "ffmpeg"]
+
+[phases.install]
+cmds = ["npm install --production=false"]
+
+[phases.build]
+cmds = []
+
+[variables]
+NODE_OPTIONS = "--experimental-require-module --expose-gc --max-old-space-size=460"
+
+[start]
+cmd = "node --experimental-require-module --expose-gc --max-old-space-size=460 index.js"
