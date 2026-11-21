@@ -1,7 +1,14 @@
 {
   "version": 2,
+  "outputDirectory": "public",
   "cleanUrls": true,
+  "installCommand": "echo 'Static deployment - skipping bot packages'",
+  "buildCommand": "echo 'Build complete'",
   "rewrites": [
+    {
+      "source": "/pair",
+      "destination": "/index.html"
+    },
     {
       "source": "/schedule",
       "destination": "/schedule.html"
@@ -17,10 +24,6 @@
     {
       "source": "/socket.io/:match*",
       "destination": "https://web-production-08da5300.up.railway.app/socket.io/:match*"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ]
 }
