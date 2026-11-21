@@ -1,5 +1,36 @@
 require('dotenv').config();
 
+// Dedicated lightweight serverless runner for Vercel Web Dashboard (Zero bot crashes, instant static serving)
+if (process.env.VERCEL) {
+    const express = require('express');
+    const path = require('path');
+    const fs = require('fs');
+    const app = express();
+
+    app.use(express.static(path.join(__dirname, 'public')));
+
+    app.get(['/schedule', '/dashboard', '/scheduler'], (req, res) => {
+        const scheduleFile = path.join(__dirname, 'public', 'schedule.html');
+        if (fs.existsSync(scheduleFile)) return res.sendFile(scheduleFile);
+        return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    });
+
+    app.get(['/', '/pair'], (req, res) => {
+        const indexFile = path.join(__dirname, 'public', 'index.html');
+        if (fs.existsSync(indexFile)) return res.sendFile(indexFile);
+        return res.sendFile(path.join(__dirname, 'index.html'));
+    });
+
+    app.get('*', (req, res) => {
+        const indexFile = path.join(__dirname, 'public', 'index.html');
+        if (fs.existsSync(indexFile)) return res.sendFile(indexFile);
+        return res.sendFile(path.join(__dirname, 'index.html'));
+    });
+
+    module.exports = app;
+    return;
+}
+
 // Global Crash Prevention Guards
 process.on('uncaughtException', (err) => {
     console.error('🛡️ [UncaughtException Guard]:', err?.message || err);
@@ -3667,45 +3698,13 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
         // ULTRA RESILIENT 24/7 ANTI-SLEEP ENGINE (Multi-Target Ping)
         // ═════════════════════════════════════════════════════════
         const clusterHerokuUrls = [
-            'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
-            'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
-            'https://saqibbot3-bb2b46aa1cb4.herokuapp.com',
-            'https://saqibot4-1469f73b3d77.herokuapp.com',
-            'https://saqibbot5-5ffa090fe31f.herokuapp.com',
-            'https://saqibot6-061b6d17645d.herokuapp.com',
-            'https://saqibot7-b9d00e67a587.herokuapp.com',
-            'https://saqibbot8-f10fafc8b934.herokuapp.com',
-            'https://saqibbot9-bebb531508e3.herokuapp.com',
-            'https://saqibot10-d27e9f3ad01e.herokuapp.com',
-            'https://saqibbot11-815563078799.herokuapp.com',
-            'https://saqibbot12-2fb338ff529a.herokuapp.com',
-            'https://saqibot13-392b066b37a5.herokuapp.com',
-            'https://saqibbot14-d84e8d59500a.herokuapp.com',
-            'https://saqibbot16-b071c813d801.herokuapp.com',
-            'https://saqibot17-a471970ef223.herokuapp.com',
-            'https://saqibbot18-45854000f60b.herokuapp.com',
-            'https://saqibbot19-bb306a89a5f4.herokuapp.com',
-            'https://saqibbot20-317bb68e4db0.herokuapp.com',
-            'https://saqibbot22-9318c2de0250.herokuapp.com',
-            'https://saqibot23-1f4bec48d0f2.herokuapp.com',
-            'https://saqibbot25-46c4cf949a77.herokuapp.com',
-            'https://saqibot25-0974df36edd8.herokuapp.com',
-            'https://saqibot26-69a8011cc819.herokuapp.com',
-            'https://saqibot27-1c1d295781fa.herokuapp.com',
-            'https://saqibbot28-658e7de676c8.herokuapp.com'
+            'https://ashumd-ab043961cba7.herokuapp.com',
+            'https://ashumd2-3ae4d1be8466.herokuapp.com'
         ];
-        const baseRailwayUrl = 'https://web-production-08da5300.up.railway.app';
-        const fallbackRailwayUrl = 'https://web-production-f30a34e9.up.railway.app';
         const pingTargets = [
             ...clusterHerokuUrls,
             ...clusterHerokuUrls.map(u => `${u}/health`),
-            baseRailwayUrl,
-            `${baseRailwayUrl}/health`,
-            fallbackRailwayUrl,
-            `${fallbackRailwayUrl}/health`,
             process.env.HEROKU_APP_NAME ? `https://${process.env.HEROKU_APP_NAME}.herokuapp.com/health` : null,
-            process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}/health` : null,
-            process.env.RAILWAY_STATIC_URL ? `https://${process.env.RAILWAY_STATIC_URL}` : null,
             process.env.APP_URL ? `${process.env.APP_URL}/health` : null,
             `http://127.0.0.1:${PORT}/health`
         ].filter(Boolean);

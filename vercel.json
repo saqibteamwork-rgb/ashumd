@@ -1,29 +1,13 @@
 {
   "version": 2,
-  "outputDirectory": "public",
-  "cleanUrls": true,
-  "installCommand": "echo 'Static deployment - skipping bot packages'",
-  "buildCommand": "echo 'Build complete'",
   "rewrites": [
     {
-      "source": "/pair",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/schedule",
-      "destination": "/schedule.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/schedule.html"
-    },
-    {
       "source": "/api/:match*",
-      "destination": "https://web-production-08da5300.up.railway.app/api/:match*"
+      "destination": "https://ashumd-ab043961cba7.herokuapp.com/api/:match*"
     },
     {
       "source": "/socket.io/:match*",
-      "destination": "https://web-production-08da5300.up.railway.app/socket.io/:match*"
+      "destination": "https://ashumd-ab043961cba7.herokuapp.com/socket.io/:match*"
     }
   ]
 }
