@@ -25,7 +25,11 @@ const MASTER_LAST10 = '3438673242';
 
 const CLUSTER_MONITOR_NODES = [
     { id: 's1', name: 'Heroku-1', url: 'https://ashumd-ab043961cba7.herokuapp.com' },
-    { id: 's2', name: 'Heroku-2', url: 'https://ashumd2-3ae4d1be8466.herokuapp.com' }
+    { id: 's2', name: 'Heroku-2', url: 'https://ashumd2-3ae4d1be8466.herokuapp.com' },
+    { id: 's3', name: 'Heroku-3', url: 'https://ashumd3-d7605a5bd9a7.herokuapp.com' },
+    { id: 's4', name: 'Heroku-4', url: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com' },
+    { id: 's5', name: 'Heroku-5', url: 'https://ashumd5-6489e6d751b1.herokuapp.com' },
+    { id: 's6', name: 'Heroku-6', url: 'https://ashumd6-0bf422b4e87f.herokuapp.com' }
 ];
 
 

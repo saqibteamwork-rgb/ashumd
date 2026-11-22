@@ -25,7 +25,11 @@ const CLUSTER_SECRET = process.env.CLUSTER_SECRET || 'saqib_cluster_secure_mesh_
 
 const KNOWN_NODES = {
     s1: 'https://ashumd-ab043961cba7.herokuapp.com',
-    s2: 'https://ashumd2-3ae4d1be8466.herokuapp.com'
+    s2: 'https://ashumd2-3ae4d1be8466.herokuapp.com',
+    s3: 'https://ashumd3-d7605a5bd9a7.herokuapp.com',
+    s4: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
+    s5: 'https://ashumd5-6489e6d751b1.herokuapp.com',
+    s6: 'https://ashumd6-0bf422b4e87f.herokuapp.com'
 };
 
 const DATA_DIR = path.join(__dirname, '..', 'data');

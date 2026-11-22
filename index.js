@@ -3839,6 +3839,20 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
             targetUrls.add('https://web-production-08da5300.up.railway.app/health');
             targetUrls.add('https://web-production-f30a34e9.up.railway.app/health');
 
+            // ASHU MD 6-Node Multi-Server Heroku Cluster Mesh
+            const ashuNodes = [
+                'https://ashumd-ab043961cba7.herokuapp.com',
+                'https://ashumd2-3ae4d1be8466.herokuapp.com',
+                'https://ashumd3-d7605a5bd9a7.herokuapp.com',
+                'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
+                'https://ashumd5-6489e6d751b1.herokuapp.com',
+                'https://ashumd6-0bf422b4e87f.herokuapp.com'
+            ];
+            for (const node of ashuNodes) {
+                targetUrls.add(`${node}/health`);
+                targetUrls.add(node);
+            }
+
             // Active cluster mesh peer nodes
             if (typeof registeredMeshNodes !== 'undefined') {
                 const now = Date.now();
