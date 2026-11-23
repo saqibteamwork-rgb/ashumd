@@ -898,7 +898,22 @@
       });
     }
 
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
+    const localNode = {
+      id: 'local',
+      name: 'Local Server (This Machine)',
+      short: 'Localhost',
+      url: (window.location.origin && window.location.origin !== 'null') ? window.location.origin : 'http://localhost:3000',
+      type: 'Local',
+      online: true,
+      active: 0,
+      ping: 1
+    };
+
     function getTargetServerNode() {
+      if (isLocal) {
+        return localNode;
+      }
       if (selectedServerMode !== 'auto' && CLUSTER[selectedServerMode]) {
         const node = CLUSTER[selectedServerMode];
         if (node.online) return node;
@@ -910,6 +925,9 @@
     }
 
     function getAlternativeServerNode(currentNode) {
+      if (isLocal) {
+        return localNode;
+      }
       const candidates = Object.values(CLUSTER).filter(n => n.id !== currentNode.id && n.online);
       return candidates.length > 0 ? candidates[0] : CLUSTER.railway;
     }
