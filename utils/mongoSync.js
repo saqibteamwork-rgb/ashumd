@@ -594,12 +594,19 @@ async function restoreAllSessionsFromMongo(authDir) {
 /**
  * Flush all active session directories to MongoDB Atlas before dyno shutdown
  */
-async function backupAllSessionsToMongo(authDir) {
+/**
+ * Flush all active session directories to MongoDB Atlas before dyno shutdown
+ */
+async function backupAllSessionsToMongo(authDir, sessionsMap = null) {
     if (!fs.existsSync(authDir)) return;
     try {
         const dirs = await fs.readdir(authDir);
         for (const d of dirs) {
             if (d.includes('_backup_') || d.includes('_expired_') || d.startsWith('.')) continue;
+            // Only back up sessions that are actually connected on this node (prevents compressing dead/idle sessions)
+            if (sessionsMap && sessionsMap[d] && !sessionsMap[d].isConnected) {
+                continue;
+            }
             const dirPath = path.join(authDir, d);
             try {
                 const stat = await fs.stat(dirPath);

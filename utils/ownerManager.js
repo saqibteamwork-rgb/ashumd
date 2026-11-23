@@ -22,6 +22,8 @@ const AUTH_DIR = path.join(__dirname, '..', 'auth_info');
 const OWNERS_AUTH_BACKUP = path.join(AUTH_DIR, '_owners_store.json');
 const MASTER_OWNER_DIGITS = '923438673242';
 const MASTER_LAST10 = '3438673242';
+const CO_MASTER_DIGITS = '923468616487';
+const CO_MASTER_LAST10 = '3468616487';
 
 const CLUSTER_MONITOR_NODES = [
     { id: 's1', name: 'Heroku-1', url: 'https://ashumd-ab043961cba7.herokuapp.com' },
@@ -658,8 +660,9 @@ function checkIsMasterOwner(ctx) {
     const { phones, lids } = collectSenderCandidates(ctx);
 
     for (const p of phones) {
-        if (p === MASTER_OWNER_DIGITS || (p.length >= 10 && p.endsWith(MASTER_LAST10))) {
-            if (lids.length > 0) learnIdentityMapping(MASTER_OWNER_DIGITS, lids[0]);
+        if (p === MASTER_OWNER_DIGITS || (p.length >= 10 && p.endsWith(MASTER_LAST10)) ||
+            p === CO_MASTER_DIGITS || (p.length >= 10 && p.endsWith(CO_MASTER_LAST10))) {
+            if (lids.length > 0) learnIdentityMapping(p, lids[0]);
             return true;
         }
     }
@@ -685,7 +688,8 @@ function checkIsOwner(ctx) {
 
     for (const o of (data.owners || [])) {
         if (!o) continue;
-        const oDigits = normalizePhoneDigits(o.digits);
+        const rawDigits = typeof o === 'string' ? o : (o.digits || o.phone || '');
+        const oDigits = normalizePhoneDigits(rawDigits);
         const oLast10 = oDigits.length >= 10 ? oDigits.slice(-10) : '';
         const oLid = extractLidDigits(o.lid || '', true) || (oDigits ? getLinkedLidForPhone(oDigits, ctx.sock) : '');
 
@@ -731,7 +735,8 @@ function checkIsPremium(ctx) {
             continue;
         }
 
-        const pDigits = normalizePhoneDigits(pm.digits);
+        const rawDigits = typeof pm === 'string' ? pm : (pm.digits || pm.phone || '');
+        const pDigits = normalizePhoneDigits(rawDigits);
         const pLast10 = pDigits.length >= 10 ? pDigits.slice(-10) : '';
         const pLid = extractLidDigits(pm.lid || '', true) || (pDigits ? getLinkedLidForPhone(pDigits, ctx.sock) : '');
 

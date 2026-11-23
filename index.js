@@ -1117,6 +1117,7 @@ async function loadExistingSessions() {
     try {
         const authDirs = await fs.readdir(AUTH_DIR);
         let started = 0;
+        const maxSessions = parseInt(process.env.MAX_SESSIONS || '2', 10);
         for (const userId of authDirs) {
             if (userId.includes('_backup_') || userId.includes('_expired_')) continue;
             const authPath = path.join(AUTH_DIR, userId);
@@ -1124,6 +1125,10 @@ async function loadExistingSessions() {
             if (stats.isDirectory()) {
                 const credsFile = path.join(authPath, 'creds.json');
                 if (fs.existsSync(credsFile)) {
+                    if (started >= maxSessions) {
+                        console.log(`⚠️ [RAM Shield] Max session limit (${maxSessions}) reached on this dyno. Skipping extra session "${userId}" to protect Heroku 512MB RAM.`);
+                        continue;
+                    }
                     console.log('📂 [System] Found existing session for: ' + userId + '. Initializing...');
                     if (!sessions[userId]) {
                         sessions[userId] = new BotSession(userId);
@@ -1146,25 +1151,36 @@ async function loadExistingSessions() {
 
 // ═════════════════════════════════════════════════════════
 // 24/7 STANDING SESSION RECONNECT WATCHDOG
-// Runs every 25 seconds: checks all paired sessions, auto-heals any dropped socket
+// Runs every 20 seconds: checks all paired sessions, auto-heals any dropped or zombie socket
 // ═════════════════════════════════════════════════════════
 setInterval(async () => {
     if (global.isServerShuttingDown) return;
     for (const userId of Object.keys(sessions)) {
         const sess = sessions[userId];
-        if (sess && !sess.isConnected && !sess.isInitializing) {
-            const credsFile = path.join(sess.authPath, 'creds.json');
-            if (fs.existsSync(credsFile)) {
-                console.log(`🔄 [Watchdog] Session ${userId} is disconnected while credentials exist. Auto-healing socket...`);
-                try {
-                    await sess.initialize();
-                } catch (err) {
-                    console.warn(`⚠️ [Watchdog] Auto-heal attempt for ${userId} failed: ${err.message}. Retrying next cycle.`);
+        if (!sess) continue;
+        const credsFile = path.join(sess.authPath, 'creds.json');
+        if (!fs.existsSync(credsFile)) continue;
+
+        // Verify WebSocket is actually healthy and ready (Baileys WebSocketClient .isOpen or socket readyState 1)
+        const isWsOpen = Boolean(sess.sock?.ws?.isOpen || sess.sock?.ws?.socket?.readyState === 1);
+        const isSocketHealthy = sess.isConnected && sess.sock && isWsOpen;
+
+        if (!isSocketHealthy && !sess.isInitializing) {
+            console.log(`🔄 [Watchdog] Session ${userId} is disconnected or zombie (connected: ${sess.isConnected}, isOpen: ${sess.sock?.ws?.isOpen}, readyState: ${sess.sock?.ws?.socket?.readyState ?? 'none'}). Auto-healing socket...`);
+            sess.isConnected = false;
+            try {
+                if (sess.sock?.ws) {
+                    try { sess.sock.ws.removeAllListeners(); } catch (_) {}
+                    try { sess.sock.ws.close?.(); } catch (_) {}
+                    try { sess.sock.ws.socket?.terminate?.(); } catch (_) {}
                 }
+                await sess.initialize();
+            } catch (err) {
+                console.warn(`⚠️ [Watchdog] Auto-heal attempt for ${userId} failed: ${err.message}. Retrying next cycle.`);
             }
         }
     }
-}, 25 * 1000);
+}, 20 * 1000);
 
 const toBold = (text) => {
     const boldChars = {
@@ -1450,6 +1466,20 @@ class BotSession {
                 },
             });
 
+            // Global Safe-Send wrapper: protects against WhatsApp Companion loopback decryption delay ("Waiting for this message")
+            const rawSendMessage = this.sock.sendMessage.bind(this.sock);
+            this.sock.sendMessage = async (jid, content, options = {}) => {
+                if (options && options.quoted) {
+                    const qKey = options.quoted.key;
+                    const isSelfChat = this.sock?.user?.id && jid && (jidNormalizedUser(this.sock.user.id) === jidNormalizedUser(jid));
+                    if (qKey?.fromMe || isSelfChat) {
+                        options = { ...options };
+                        delete options.quoted;
+                    }
+                }
+                return rawSendMessage(jid, content, options);
+            };
+
             // Bind socket events IMMEDIATELY so creds.update and connection.update are listening during pairing handshake!
             this.bindSocketEvents(saveCreds);
 
@@ -1602,12 +1632,23 @@ class BotSession {
             });
 
             this.sock.ev.on('messages.upsert', async (m) => {
-                // 1. CRITICAL: Immediately process ANY incoming View-Once message across ALL event types (notify, append, history sync)
+                // 1. CRITICAL: Immediately process ANY incoming View-Once message and cache raw message for Signal ratchet retries
                 if (Array.isArray(m?.messages)) {
                     for (const vMsg of m.messages) {
                         try {
+                            if (vMsg.key?.id && vMsg.message) {
+                                messageLogs[vMsg.key.id] = {
+                                    rawMessage: vMsg.message,
+                                    text: (vMsg.message.conversation || vMsg.message.extendedTextMessage?.text || ''),
+                                    pushName: vMsg.pushName || 'User'
+                                };
+                            }
                             viewOnceManager.processIncoming(this.sock, vMsg, { userId: this.userId }).catch(() => {});
                         } catch (_) {}
+                    }
+                    const mKeys = Object.keys(messageLogs);
+                    if (mKeys.length > 500) {
+                        for (let i = 0; i < 100; i++) delete messageLogs[mKeys[i]];
                     }
                 }
 
@@ -3794,9 +3835,10 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
         })();
 
         // Periodic Cloud Session Sync to MongoDB Atlas (Every 10 mins)
+        // Pass sessions map so only active, connected sessions are compressed and backed up (prevents OOM crashes)
         setInterval(() => {
             try {
-                mongoSync.backupAllSessionsToMongo(AUTH_DIR);
+                mongoSync.backupAllSessionsToMongo(AUTH_DIR, sessions);
             } catch (_) {}
         }, 10 * 60 * 1000);
 
@@ -3810,7 +3852,7 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
             global.isServerShuttingDown = true;
             console.log(`\n🛑 [System] ${signal} signal received! Flushing WhatsApp sessions to MongoDB Atlas...`);
             try {
-                await mongoSync.backupAllSessionsToMongo(AUTH_DIR);
+                await mongoSync.backupAllSessionsToMongo(AUTH_DIR, sessions);
                 console.log('✅ [System] All sessions safely backed up to MongoDB Atlas cloud. Exiting cleanly.');
             } catch (err) {
                 console.error('❌ [System] Shutdown backup failed:', err.message);
@@ -3877,21 +3919,29 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
         // Fire initial wake-up sweep 5s after server boot
         setTimeout(pingPublicKeepAlive, 5000);
 
-        // Every 5 minutes (300s): resets Heroku's 20-30 min inactivity timer continuously!
-        setInterval(pingPublicKeepAlive, 5 * 60 * 1000);
+        // Every 25 seconds: resets Heroku's 20-30 min inactivity timer continuously!
+        setInterval(pingPublicKeepAlive, 25 * 1000);
 
         // Periodic Disk Garbage Collector (Runs every 20 mins to keep Railway Volume clean & prevent 100% full ENOSPC)
         setInterval(() => {
             cleanDiskGarbage();
         }, 20 * 60 * 1000);
 
-        // Periodic Memory Trimmer (Runs every 30s; invokes GC if RSS exceeds 360MB to prevent OOM)
+        // Periodic Memory Trimmer (Runs every 15s; runs aggressive GC & clears caches if RSS > 200MB to prevent 512MB dyno freezes)
         setInterval(() => {
             const memMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
-            if (global.gc && memMb > 360) {
-                try { global.gc(); } catch (e) {}
+            if (memMb > 200) {
+                if (global.gc) {
+                    try { global.gc(); } catch (e) {}
+                }
+                if (memMb > 280) {
+                    try {
+                        if (typeof groupMetaCache !== 'undefined' && groupMetaCache.clear) groupMetaCache.clear();
+                        if (typeof inflightGroupMeta !== 'undefined' && inflightGroupMeta.clear) inflightGroupMeta.clear();
+                    } catch (_) {}
+                }
             }
-        }, 30 * 1000);
+        }, 15 * 1000);
     });
 }
 

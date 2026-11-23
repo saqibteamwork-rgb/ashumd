@@ -391,7 +391,7 @@ function startPeriodicClusterSync(botData, saveBotData) {
                 }
             }
         } catch (_) {}
-    }, 60 * 1000);
+    }, 5 * 60 * 1000); // 5 minutes interval to save MongoDB Atlas CPU and RAM
 }
 
 module.exports = {
