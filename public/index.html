@@ -827,9 +827,8 @@
       }, 2600);
     }
 
-    // --- Multi-Server Cluster Definition ---
+    // --- 6-Node Multi-Server Cluster Definition ---
     const CLUSTER = {
-      local: { id: 'local', name: 'Local Server (This Machine)', short: 'Localhost', url: (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file')) ? window.location.origin : 'http://localhost:3000', type: 'Local', online: true, active: 0, ping: 1 },
       s1: { id: 's1', name: 'Node 1 (Ashu-1)', short: 'Heroku-1', url: 'https://ashumd-ab043961cba7.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
       s2: { id: 's2', name: 'Node 2 (Ashu-2)', short: 'Heroku-2', url: 'https://ashumd2-3ae4d1be8466.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
       s3: { id: 's3', name: 'Node 3 (Ashu-3)', short: 'Heroku-3', url: 'https://ashumd3-d7605a5bd9a7.herokuapp.com', type: 'Heroku', online: true, active: 0, ping: null },
@@ -899,22 +898,7 @@
       });
     }
 
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
-    const localNode = {
-      id: 'local',
-      name: 'Local Server (This Machine)',
-      short: 'Localhost',
-      url: (window.location.origin && window.location.origin !== 'null') ? window.location.origin : 'http://localhost:3000',
-      type: 'Local',
-      online: true,
-      active: 0,
-      ping: 1
-    };
-
     function getTargetServerNode() {
-      if (isLocal) {
-        return localNode;
-      }
       if (selectedServerMode !== 'auto' && CLUSTER[selectedServerMode]) {
         const node = CLUSTER[selectedServerMode];
         if (node.online) return node;
@@ -926,9 +910,6 @@
     }
 
     function getAlternativeServerNode(currentNode) {
-      if (isLocal) {
-        return localNode;
-      }
       const candidates = Object.values(CLUSTER).filter(n => n.id !== currentNode.id && n.online);
       return candidates.length > 0 ? candidates[0] : CLUSTER.railway;
     }
