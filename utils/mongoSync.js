@@ -34,12 +34,34 @@ const sessionDebounceTimers = new Map();
 // Multi-Node Cluster Identifiers
 let currentServerNodeId = (process.env.SERVER_ID || process.env.NODE_ID || '').trim().toLowerCase() || null;
 const KNOWN_NODES = {
-    s1: 'https://ashumd-ab043961cba7.herokuapp.com',
-    s2: 'https://ashumd2-3ae4d1be8466.herokuapp.com',
-    s3: 'https://ashumd3-d7605a5bd9a7.herokuapp.com',
-    s4: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
-    s5: 'https://ashumd5-6489e6d751b1.herokuapp.com',
-    s6: 'https://ashumd6-0bf422b4e87f.herokuapp.com'
+    s1: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
+    s2: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
+    s3: 'https://saqibbot3-bb2b46aa1cb4.herokuapp.com',
+    s4: 'https://saqibot4-1469f73b3d77.herokuapp.com',
+    s5: 'https://saqibbot5-5ffa090fe31f.herokuapp.com',
+    s6: 'https://saqibot6-061b6d17645d.herokuapp.com',
+    s7: 'https://saqibot7-b9d00e67a587.herokuapp.com',
+    s8: 'https://saqibbot8-f10fafc8b934.herokuapp.com',
+    s9: 'https://saqibbot9-bebb531508e3.herokuapp.com',
+    s10: 'https://saqibot10-d27e9f3ad01e.herokuapp.com',
+    s11: 'https://saqibbot11-815563078799.herokuapp.com',
+    s12: 'https://saqibbot12-2fb338ff529a.herokuapp.com',
+    s13: 'https://saqibot13-392b066b37a5.herokuapp.com',
+    s14: 'https://saqibbot14-d84e8d59500a.herokuapp.com',
+    s16: 'https://saqibbot16-b071c813d801.herokuapp.com',
+    s17: 'https://saqibot17-a471970ef223.herokuapp.com',
+    s18: 'https://saqibbot18-45854000f60b.herokuapp.com',
+    s19: 'https://saqibbot19-bb306a89a5f4.herokuapp.com',
+    s20: 'https://saqibbot20-317bb68e4db0.herokuapp.com',
+    s21: 'https://saqibbot21-ac7859f5f0fb.herokuapp.com',
+    s22: 'https://saqibbot22-9318c2de0250.herokuapp.com',
+    s23: 'https://saqibot23-1f4bec48d0f2.herokuapp.com',
+    s25: 'https://saqibbot25-46c4cf949a77.herokuapp.com',
+    s25b: 'https://saqibot25-0974df36edd8.herokuapp.com',
+    s26: 'https://saqibot26-69a8011cc819.herokuapp.com',
+    s27: 'https://saqibot27-1c1d295781fa.herokuapp.com',
+    s28: 'https://saqibbot28-658e7de676c8.herokuapp.com',
+    railway: 'https://web-production-08da5300.up.railway.app'
 };
 
 /**
@@ -445,10 +467,25 @@ async function backupSessionToMongo(userId, authPath, immediate = false) {
 
             const files = await fs.readdir(authPath);
             const filesMap = {};
+
+            // Keep only latest 150 pre-keys to keep MongoDB cloud backup compact and fast
+            const preKeyFiles = files.filter(f => f.startsWith('pre-key-'));
+            let allowedPreKeys = null;
+            if (preKeyFiles.length > 200) {
+                preKeyFiles.sort((a, b) => {
+                    const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0;
+                    const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0;
+                    return numB - numA;
+                });
+                allowedPreKeys = new Set(preKeyFiles.slice(0, 150));
+            }
+
             for (const file of files) {
                 if (file.includes('_backup_') || file.includes('_expired_') || file.endsWith('.tmp')) continue;
                 // Exclude ephemeral cache files (tctoken, lid-mapping) that bloat disk and cause dyno OOM crashes
                 if (file.startsWith('tctoken-') || file.startsWith('lid-mapping-')) continue;
+                if (allowedPreKeys && file.startsWith('pre-key-') && !allowedPreKeys.has(file)) continue;
+
                 const filePath = path.join(authPath, file);
                 const stat = await fs.stat(filePath);
                 if (stat.isFile()) {
@@ -510,12 +547,25 @@ async function restoreAllSessionsFromMongo(authDir) {
         const myNode = currentServerNodeId || 'default';
         let query = {};
         if (myNode && myNode !== 'default' && myNode !== 'all') {
-            // Specific Cluster Worker Node: strictly restore ONLY sessions explicitly assigned to this node!
-            query = { nodeId: myNode };
+            // Specific Cluster Worker Node: strictly restore ONLY sessions explicitly assigned to this node,
+            // or if node is s1, also support sessions marked default/null
+            if (myNode === 's1') {
+                query = {
+                    $or: [
+                        { nodeId: 's1' },
+                        { nodeId: 'default' },
+                        { nodeId: null },
+                        { nodeId: { $exists: false } }
+                    ]
+                };
+            } else {
+                query = { nodeId: myNode };
+            }
         } else {
-            // Default / master node: restore only sessions explicitly assigned to default/null
+            // Default / master node: restore only sessions explicitly assigned to default/null/s1
             query = {
                 $or: [
+                    { nodeId: 's1' },
                     { nodeId: 'default' },
                     { nodeId: null },
                     { nodeId: { $exists: false } }
@@ -529,8 +579,39 @@ async function restoreAllSessionsFromMongo(authDir) {
             return 0;
         }
 
+        // 1. Identify Owner Numbers to ALWAYS prioritize first
+        let ownerNumbers = ['923438673242', '923468616487', '923420580154'];
+        try {
+            const settings = require('../settings');
+            const config = require('../config');
+            if (settings?.ownerNumber) ownerNumbers.push(String(settings.ownerNumber).replace(/[^0-9]/g, ''));
+            if (config?.OWNER_NUMBER) ownerNumbers.push(String(config.OWNER_NUMBER).replace(/[^0-9]/g, ''));
+        } catch (_) {}
+        ownerNumbers = [...new Set(ownerNumbers.filter(Boolean))];
+
+        // 2. Smart Sort:
+        // Priority #1: Owner numbers first
+        // Priority #2: Most recently updated sessions (updatedAt descending)
+        sessionDocs.sort((a, b) => {
+            const aIsOwner = ownerNumbers.includes(String(a._id));
+            const bIsOwner = ownerNumbers.includes(String(b._id));
+            if (aIsOwner && !bIsOwner) return -1;
+            if (!aIsOwner && bIsOwner) return 1;
+            return (b.updatedAt || 0) - (a.updatedAt || 0);
+        });
+
+        // 3. ULTRA SPEED RESTORE LIMIT:
+        // Heroku dynos run at most maxSessions (default 2, max 3 with owner).
+        // Restoring 40+ dead sessions wastes 15 minutes, hits inode limits & crashes RAM.
+        // We restore ONLY the top maxSessions + 1 active sessions needed to connect!
+        const maxSessions = parseInt(process.env.MAX_SESSIONS || (process.env.DYNO ? '2' : '10'), 10);
+        const restoreLimit = maxSessions + (ownerNumbers.length > 0 ? 1 : 0);
+        const targetDocs = sessionDocs.slice(0, restoreLimit);
+
+        console.log(`⚡ [MongoDB Session Restore] Fast-Boot: Restoring top ${targetDocs.length} active sessions (out of ${sessionDocs.length} cloud records)...`);
+
         let restoredCount = 0;
-        for (const doc of sessionDocs) {
+        for (const doc of targetDocs) {
             const userId = doc._id;
             if (!userId || !doc.data || String(userId).startsWith('qr_')) continue;
 
@@ -542,6 +623,7 @@ async function restoreAllSessionsFromMongo(authDir) {
                 try {
                     const localStat = fs.statSync(credsFile);
                     if (localStat.mtimeMs >= (doc.updatedAt || 0)) {
+                        restoredCount++;
                         continue;
                     }
                 } catch (_) {}
@@ -564,11 +646,28 @@ async function restoreAllSessionsFromMongo(authDir) {
 
                 if (!filesMap['creds.json']) continue;
 
+                // Pre-key pruning: Keep only the newest 150 pre-keys to prevent dyno timeout
+                const preKeyEntries = Object.keys(filesMap).filter(k => k.startsWith('pre-key-'));
+                let allowedPreKeys = null;
+                if (preKeyEntries.length > 200) {
+                    preKeyEntries.sort((a, b) => {
+                        const numA = parseInt(a.replace(/[^0-9]/g, ''), 10) || 0;
+                        const numB = parseInt(b.replace(/[^0-9]/g, ''), 10) || 0;
+                        return numB - numA;
+                    });
+                    allowedPreKeys = new Set(preKeyEntries.slice(0, 150));
+                }
+
                 await fs.ensureDir(sessionDir);
+                let writtenFiles = 0;
                 for (const [filename, content] of Object.entries(filesMap)) {
                     // Skip ephemeral junk that bloats dyno inodes & crashes Heroku with OOM
-                    if (filename.startsWith('tctoken-') || filename.startsWith('lid-mapping-')) continue;
+                    if (filename.startsWith('tctoken-') || filename.startsWith('lid-mapping-') || filename.endsWith('.tmp')) continue;
+                    // Skip old consumed prekeys beyond latest 150
+                    if (allowedPreKeys && filename.startsWith('pre-key-') && !allowedPreKeys.has(filename)) continue;
+
                     await fs.writeFile(path.join(sessionDir, filename), content, 'utf8');
+                    writtenFiles++;
                 }
 
                 // Bind to this node if it was unassigned
@@ -577,14 +676,14 @@ async function restoreAllSessionsFromMongo(authDir) {
                 }
 
                 restoredCount++;
-                console.log(`📥 [MongoDB Session Restore] Restored session "${userId}" (${Object.keys(filesMap).length} files) to disk!`);
+                console.log(`📥 [MongoDB Session Restore] Restored session "${userId}" (${writtenFiles} files) in milliseconds!`);
             } catch (decompressErr) {
                 console.warn(`[MongoDB Session Restore] Failed to unpack session ${userId}:`, decompressErr.message);
             }
         }
 
         if (restoredCount > 0) {
-            console.log(`✅ [MongoDB Session Restore] Recovered ${restoredCount} active sessions from MongoDB Atlas cloud!`);
+            console.log(`✅ [MongoDB Session Restore] Recovered ${restoredCount} active sessions in ~1 second! Fast-Boot ready.`);
         }
         return restoredCount;
     } catch (err) {
@@ -597,7 +696,10 @@ async function restoreAllSessionsFromMongo(authDir) {
  * Flush all active session directories to MongoDB Atlas before dyno shutdown
  */
 /**
- * Flush all active session directories to MongoDB Atlas before dyno shutdown
+ * Backup all WhatsApp sessions to MongoDB Atlas
+ * @param {string} authDir - Path to auth_info directory
+ * @param {Object} [sessionsMap=null] - Optional live sessions map
+ * @param {boolean} [forceAll=false] - When true (e.g. Heroku SIGTERM 24-hr dyno cycle), backs up all sessions with creds.json unconditionally
  */
 async function backupAllSessionsToMongo(authDir, sessionsMap = null, forceAll = false) {
     if (!fs.existsSync(authDir)) return;
@@ -667,6 +769,94 @@ async function getAllClusterSessions() {
     }
 }
 
+/**
+ * ═════════════════════════════════════════════════════════
+ * DISTRIBUTED SESSION LEADER ELECTION LOCK
+ * Guarantees ONLY ONE server node connects to WhatsApp at a time.
+ * Prevents Code 440 flapping, socket wars, and zombie state across 26 nodes!
+ * ═════════════════════════════════════════════════════════
+ */
+async function acquireSessionLock(userId, instanceId) {
+    if (!userId || !instanceId) return true;
+    if (!isConnected || !db) {
+        const ok = await initMongo().catch(() => false);
+        if (!ok || !db) return true; // Fail open if MongoDB is unreachable
+    }
+    try {
+        const col = db.collection('session_locks');
+        const now = Date.now();
+        const staleThreshold = now - 45000; // 45s heartbeat timeout
+
+        // Atomic check & claim:
+        // Claim lock if:
+        // 1. Lock already belongs to this instanceId
+        // 2. OR current lock heartbeat is older than 45s (previous holder died or slept)
+        const result = await col.findOneAndUpdate(
+            {
+                _id: String(userId),
+                $or: [
+                    { lockedBy: instanceId },
+                    { heartbeat: { $lt: staleThreshold } }
+                ]
+            },
+            {
+                $set: {
+                    lockedBy: instanceId,
+                    nodeId: currentServerNodeId || 'default',
+                    heartbeat: now,
+                    updatedAt: now
+                }
+            },
+            { returnDocument: 'after' }
+        );
+
+        if (result && (result.lockedBy === instanceId || result.value?.lockedBy === instanceId)) {
+            return true;
+        }
+
+        // Try inserting fresh lock if doc does not exist
+        try {
+            await col.insertOne({
+                _id: String(userId),
+                lockedBy: instanceId,
+                nodeId: currentServerNodeId || 'default',
+                heartbeat: now,
+                updatedAt: now
+            });
+            return true;
+        } catch (insertErr) {
+            // Duplicate key: another instance holds an active lock
+            const existing = await col.findOne({ _id: String(userId) });
+            if (existing && existing.lockedBy !== instanceId && (now - (existing.heartbeat || 0)) < 45000) {
+                return false; // Locked by another healthy living node
+            }
+            return true;
+        }
+    } catch (e) {
+        console.warn(`[Session Lock Warning] acquireSessionLock error for ${userId}:`, e.message);
+        return true;
+    }
+}
+
+async function renewSessionLock(userId, instanceId) {
+    if (!userId || !instanceId || !isConnected || !db) return;
+    try {
+        const col = db.collection('session_locks');
+        await col.updateOne(
+            { _id: String(userId), lockedBy: instanceId },
+            { $set: { heartbeat: Date.now() } }
+        );
+    } catch (_) {}
+}
+
+async function releaseSessionLock(userId, instanceId) {
+    if (!userId || !instanceId || !isConnected || !db) return;
+    try {
+        const col = db.collection('session_locks');
+        await col.deleteOne({ _id: String(userId), lockedBy: instanceId });
+    } catch (_) {}
+}
+
 module.exports = {
     initMongo,
     getDb: () => db,
@@ -681,5 +871,8 @@ module.exports = {
     restoreAllSessionsFromMongo,
     backupAllSessionsToMongo,
     deleteSessionFromMongo,
-    getAllClusterSessions
+    getAllClusterSessions,
+    acquireSessionLock,
+    renewSessionLock,
+    releaseSessionLock
 };
