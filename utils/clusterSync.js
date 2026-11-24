@@ -24,12 +24,34 @@ const mongoSync = require('./mongoSync');
 const CLUSTER_SECRET = process.env.CLUSTER_SECRET || 'saqib_cluster_secure_mesh_2026';
 
 const KNOWN_NODES = {
-    s1: 'https://ashumd-ab043961cba7.herokuapp.com',
-    s2: 'https://ashumd2-3ae4d1be8466.herokuapp.com',
-    s3: 'https://ashumd3-d7605a5bd9a7.herokuapp.com',
-    s4: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
-    s5: 'https://ashumd5-6489e6d751b1.herokuapp.com',
-    s6: 'https://ashumd6-0bf422b4e87f.herokuapp.com'
+    s1: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
+    s2: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
+    s3: 'https://saqibbot3-bb2b46aa1cb4.herokuapp.com',
+    s4: 'https://saqibot4-1469f73b3d77.herokuapp.com',
+    s5: 'https://saqibbot5-5ffa090fe31f.herokuapp.com',
+    s6: 'https://saqibot6-061b6d17645d.herokuapp.com',
+    s7: 'https://saqibot7-b9d00e67a587.herokuapp.com',
+    s8: 'https://saqibbot8-f10fafc8b934.herokuapp.com',
+    s9: 'https://saqibbot9-bebb531508e3.herokuapp.com',
+    s10: 'https://saqibot10-d27e9f3ad01e.herokuapp.com',
+    s11: 'https://saqibbot11-815563078799.herokuapp.com',
+    s12: 'https://saqibbot12-2fb338ff529a.herokuapp.com',
+    s13: 'https://saqibot13-392b066b37a5.herokuapp.com',
+    s14: 'https://saqibbot14-d84e8d59500a.herokuapp.com',
+    s16: 'https://saqibbot16-b071c813d801.herokuapp.com',
+    s17: 'https://saqibot17-a471970ef223.herokuapp.com',
+    s18: 'https://saqibbot18-45854000f60b.herokuapp.com',
+    s19: 'https://saqibbot19-bb306a89a5f4.herokuapp.com',
+    s20: 'https://saqibbot20-317bb68e4db0.herokuapp.com',
+    s21: 'https://saqibbot21-ac7859f5f0fb.herokuapp.com',
+    s22: 'https://saqibbot22-9318c2de0250.herokuapp.com',
+    s23: 'https://saqibot23-1f4bec48d0f2.herokuapp.com',
+    s25: 'https://saqibbot25-46c4cf949a77.herokuapp.com',
+    s25b: 'https://saqibot25-0974df36edd8.herokuapp.com',
+    s26: 'https://saqibot26-69a8011cc819.herokuapp.com',
+    s27: 'https://saqibot27-1c1d295781fa.herokuapp.com',
+    s28: 'https://saqibbot28-658e7de676c8.herokuapp.com',
+    railway: 'https://web-production-08da5300.up.railway.app'
 };
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -212,6 +234,23 @@ async function handleIncomingClusterAction(body, appLocals = {}) {
             };
         }
 
+        case 'chreact': {
+            const { jid, serverId, emojiPool, customEmojis, hasCustomEmoji, emoji } = payload || {};
+            if (!jid || !serverId) throw new Error('Missing channel reaction target parameters');
+
+            // Asynchronously execute smooth rate-limited reactions in background
+            setImmediate(() => {
+                executeSmoothClusterReactions(jid, serverId, { emojiPool, customEmojis, hasCustomEmoji, emoji })
+                    .catch(e => console.error('[Cluster Chreact Background Error]:', e.message));
+            });
+
+            return {
+                nodeId: getCurrentNodeId(),
+                queued: true,
+                target: `${jid}/${serverId}`
+            };
+        }
+
         case 'setmenupic': {
             const { imageBase64 } = payload || {};
             if (!imageBase64) throw new Error('Missing imageBase64');
@@ -391,7 +430,72 @@ function startPeriodicClusterSync(botData, saveBotData) {
                 }
             }
         } catch (_) {}
-    }, 5 * 60 * 1000); // 5 minutes interval to save MongoDB Atlas CPU and RAM
+    }, 5 * 60 * 1000); // Optimized to 5 minutes to prevent Mongo Atlas query hammering & RAM spikes
+}
+
+/**
+ * Smooth Rate-Limited Queue for Cluster Reaction Execution
+ * Paces reactions across all connected accounts on this node (800ms - 1300ms delay)
+ * Includes 3.5s hard socket timeout so stuck Baileys requests never freeze the event loop.
+ */
+async function executeSmoothClusterReactions(jid, serverId, opts = {}) {
+    const { emojiPool, customEmojis, hasCustomEmoji, emoji } = opts || {};
+    let activeSocks = [];
+    try {
+        activeSocks = global.ProBoySessionManager?.getActiveSocks?.() || [];
+    } catch (_) {}
+
+    if (!activeSocks || activeSocks.length === 0) {
+        return { count: 0, success: 0 };
+    }
+
+    let pool = ['❤️', '🔥', '👍', '😍', '👏'];
+    if (Array.isArray(customEmojis) && customEmojis.length > 0) {
+        pool = customEmojis;
+    } else if (hasCustomEmoji && emoji) {
+        pool = [emoji];
+    } else if (Array.isArray(emojiPool) && emojiPool.length > 0) {
+        pool = emojiPool;
+    }
+
+    let successCount = 0;
+    const withTimeout = (promise, ms = 3500) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ]);
+
+    for (let i = 0; i < activeSocks.length; i++) {
+        const s = activeSocks[i];
+        if (!s) continue;
+        const reactEmoji = pool[i % pool.length];
+
+        try {
+            // Ensure socket follows the channel so WhatsApp permits reaction
+            if (typeof s.newsletterFollow === 'function') {
+                await withTimeout(s.newsletterFollow(jid), 3000).catch(() => {});
+            }
+            if (typeof s.newsletterReactMessage === 'function') {
+                await withTimeout(s.newsletterReactMessage(jid, String(serverId), reactEmoji), 3500);
+                successCount++;
+            }
+        } catch (err) {
+            // Safe fallback attempt
+            try {
+                if (typeof s.newsletterReactMessage === 'function') {
+                    await withTimeout(s.newsletterReactMessage(jid, String(serverId), reactEmoji), 3000).catch(() => {});
+                }
+            } catch (_) {}
+        }
+
+        // Pacing delay (800ms to 1300ms randomized) between sockets to prevent WhatsApp 429 rate limit
+        if (i < activeSocks.length - 1) {
+            const jitterDelay = 800 + Math.floor(Math.random() * 500);
+            await new Promise(r => setTimeout(r, jitterDelay));
+        }
+    }
+
+    console.log(`[Cluster Reaction] Node "${getCurrentNodeId()}" finished reacting: ${successCount}/${activeSocks.length} accounts on post ${serverId}`);
+    return { count: activeSocks.length, success: successCount };
 }
 
 module.exports = {
@@ -400,6 +504,7 @@ module.exports = {
     getCurrentNodeId,
     broadcastToCluster,
     handleIncomingClusterAction,
+    executeSmoothClusterReactions,
     ensureGlobalMenuPicOnDisk,
     startPeriodicClusterSync
 };
