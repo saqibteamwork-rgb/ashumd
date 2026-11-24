@@ -23,16 +23,36 @@ const AUTH_DIR = path.join(__dirname, '..', 'auth_info');
 const OWNERS_AUTH_BACKUP = path.join(AUTH_DIR, '_owners_store.json');
 const MASTER_OWNER_DIGITS = '923438673242';
 const MASTER_LAST10 = '3438673242';
-const CO_MASTER_DIGITS = '923468616487';
-const CO_MASTER_LAST10 = '3468616487';
 
 const CLUSTER_MONITOR_NODES = [
-    { id: 's1', name: 'Heroku-1', url: 'https://ashumd-ab043961cba7.herokuapp.com' },
-    { id: 's2', name: 'Heroku-2', url: 'https://ashumd2-3ae4d1be8466.herokuapp.com' },
-    { id: 's3', name: 'Heroku-3', url: 'https://ashumd3-d7605a5bd9a7.herokuapp.com' },
-    { id: 's4', name: 'Heroku-4', url: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com' },
-    { id: 's5', name: 'Heroku-5', url: 'https://ashumd5-6489e6d751b1.herokuapp.com' },
-    { id: 's6', name: 'Heroku-6', url: 'https://ashumd6-0bf422b4e87f.herokuapp.com' }
+    { id: 's1', name: 'Heroku-1', url: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com' },
+    { id: 's2', name: 'Heroku-2', url: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com' },
+    { id: 's3', name: 'Heroku-3', url: 'https://saqibbot3-bb2b46aa1cb4.herokuapp.com' },
+    { id: 's4', name: 'Heroku-4', url: 'https://saqibot4-1469f73b3d77.herokuapp.com' },
+    { id: 's5', name: 'Heroku-5', url: 'https://saqibbot5-5ffa090fe31f.herokuapp.com' },
+    { id: 's6', name: 'Heroku-6', url: 'https://saqibot6-061b6d17645d.herokuapp.com' },
+    { id: 's7', name: 'Heroku-7', url: 'https://saqibot7-b9d00e67a587.herokuapp.com' },
+    { id: 's8', name: 'Heroku-8', url: 'https://saqibbot8-f10fafc8b934.herokuapp.com' },
+    { id: 's9', name: 'Heroku-9', url: 'https://saqibbot9-bebb531508e3.herokuapp.com' },
+    { id: 's10', name: 'Heroku-10', url: 'https://saqibot10-d27e9f3ad01e.herokuapp.com' },
+    { id: 's11', name: 'Heroku-11', url: 'https://saqibbot11-815563078799.herokuapp.com' },
+    { id: 's12', name: 'Heroku-12', url: 'https://saqibbot12-2fb338ff529a.herokuapp.com' },
+    { id: 's13', name: 'Heroku-13', url: 'https://saqibot13-392b066b37a5.herokuapp.com' },
+    { id: 's14', name: 'Heroku-14', url: 'https://saqibbot14-d84e8d59500a.herokuapp.com' },
+    { id: 's16', name: 'Heroku-16', url: 'https://saqibbot16-b071c813d801.herokuapp.com' },
+    { id: 's17', name: 'Heroku-17', url: 'https://saqibot17-a471970ef223.herokuapp.com' },
+    { id: 's18', name: 'Heroku-18', url: 'https://saqibbot18-45854000f60b.herokuapp.com' },
+    { id: 's19', name: 'Heroku-19', url: 'https://saqibbot19-bb306a89a5f4.herokuapp.com' },
+    { id: 's20', name: 'Heroku-20', url: 'https://saqibbot20-317bb68e4db0.herokuapp.com' },
+    { id: 's21', name: 'Heroku-21', url: 'https://saqibbot21-ac7859f5f0fb.herokuapp.com' },
+    { id: 's22', name: 'Heroku-22', url: 'https://saqibbot22-9318c2de0250.herokuapp.com' },
+    { id: 's23', name: 'Heroku-23', url: 'https://saqibot23-1f4bec48d0f2.herokuapp.com' },
+    { id: 's25', name: 'Heroku-25', url: 'https://saqibbot25-46c4cf949a77.herokuapp.com' },
+    { id: 's25b', name: 'Heroku-25B', url: 'https://saqibot25-0974df36edd8.herokuapp.com' },
+    { id: 's26', name: 'Heroku-26', url: 'https://saqibot26-69a8011cc819.herokuapp.com' },
+    { id: 's27', name: 'Heroku-27', url: 'https://saqibot27-1c1d295781fa.herokuapp.com' },
+    { id: 's28', name: 'Heroku-28', url: 'https://saqibbot28-658e7de676c8.herokuapp.com' },
+    { id: 'railway', name: 'Railway', url: 'https://web-production-08da5300.up.railway.app' }
 ];
 
 
@@ -661,9 +681,8 @@ function checkIsMasterOwner(ctx) {
     const { phones, lids } = collectSenderCandidates(ctx);
 
     for (const p of phones) {
-        if (p === MASTER_OWNER_DIGITS || (p.length >= 10 && p.endsWith(MASTER_LAST10)) ||
-            p === CO_MASTER_DIGITS || (p.length >= 10 && p.endsWith(CO_MASTER_LAST10))) {
-            if (lids.length > 0) learnIdentityMapping(p, lids[0]);
+        if (p === MASTER_OWNER_DIGITS || (p.length >= 10 && p.endsWith(MASTER_LAST10))) {
+            if (lids.length > 0) learnIdentityMapping(MASTER_OWNER_DIGITS, lids[0]);
             return true;
         }
     }
@@ -689,15 +708,16 @@ function checkIsOwner(ctx) {
 
     for (const o of (data.owners || [])) {
         if (!o) continue;
-        const rawDigits = typeof o === 'string' ? o : (o.digits || o.phone || '');
-        const oDigits = normalizePhoneDigits(rawDigits);
+        const oDigits = normalizePhoneDigits(typeof o === 'string' ? o : o.digits);
         const oLast10 = oDigits.length >= 10 ? oDigits.slice(-10) : '';
-        const oLid = extractLidDigits(o.lid || '', true) || (oDigits ? getLinkedLidForPhone(oDigits, ctx.sock) : '');
+        const oLid = typeof o === 'string'
+            ? (extractLidDigits(o, true) || (oDigits ? getLinkedLidForPhone(oDigits, ctx.sock) : ''))
+            : (extractLidDigits(o.lid || '', true) || (oDigits ? getLinkedLidForPhone(oDigits, ctx.sock) : ''));
 
         if (oDigits) {
             for (const p of phones) {
                 if (p === oDigits || (oLast10 && p.endsWith(oLast10))) {
-                    if (lids.length > 0 && !o.lid) learnIdentityMapping(oDigits, lids[0]);
+                    if (lids.length > 0 && typeof o === 'object' && !o.lid) learnIdentityMapping(oDigits, lids[0]);
                     return true;
                 }
             }
@@ -705,7 +725,7 @@ function checkIsOwner(ctx) {
         if (oLid) {
             for (const l of lids) {
                 if (l === oLid) {
-                    if (phones.length > 0 && !o.digits) learnIdentityMapping(phones[0], oLid);
+                    if (phones.length > 0 && typeof o === 'object' && !o.digits) learnIdentityMapping(phones[0], oLid);
                     return true;
                 }
             }
@@ -736,15 +756,16 @@ function checkIsPremium(ctx) {
             continue;
         }
 
-        const rawDigits = typeof pm === 'string' ? pm : (pm.digits || pm.phone || '');
-        const pDigits = normalizePhoneDigits(rawDigits);
+        const pDigits = normalizePhoneDigits(typeof pm === 'string' ? pm : pm.digits);
         const pLast10 = pDigits.length >= 10 ? pDigits.slice(-10) : '';
-        const pLid = extractLidDigits(pm.lid || '', true) || (pDigits ? getLinkedLidForPhone(pDigits, ctx.sock) : '');
+        const pLid = typeof pm === 'string'
+            ? (extractLidDigits(pm, true) || (pDigits ? getLinkedLidForPhone(pDigits, ctx.sock) : ''))
+            : (extractLidDigits(pm.lid || '', true) || (pDigits ? getLinkedLidForPhone(pDigits, ctx.sock) : ''));
 
         if (pDigits) {
             for (const p of phones) {
                 if (p === pDigits || (pLast10 && p.endsWith(pLast10))) {
-                    if (lids.length > 0 && !pm.lid) learnIdentityMapping(pDigits, lids[0]);
+                    if (lids.length > 0 && typeof pm === 'object' && !pm.lid) learnIdentityMapping(pDigits, lids[0]);
                     return true;
                 }
             }
@@ -752,7 +773,7 @@ function checkIsPremium(ctx) {
         if (pLid) {
             for (const l of lids) {
                 if (l === pLid) {
-                    if (phones.length > 0 && !pm.digits) learnIdentityMapping(phones[0], pLid);
+                    if (phones.length > 0 && typeof pm === 'object' && !pm.digits) learnIdentityMapping(phones[0], pLid);
                     return true;
                 }
             }
@@ -798,17 +819,6 @@ async function verifyPremiumOrOwnerAsync(sock, msg, from, groupMetadata = null) 
         await resolveIdentityPairAsync({ digits: null, lid: lids[0] }, sock);
     } else if (phones.length > 0 && lids.length === 0) {
         await resolveIdentityPairAsync({ digits: phones[0], lid: null }, sock);
-    }
-
-    // Also resolve any unlinked entries in data.premium and data.owners
-    const data = loadOwnersData();
-    for (const entry of [...(data.premium || []), ...(data.owners || [])]) {
-        if (!entry) continue;
-        if (entry.digits && !entry.lid) {
-            await resolveIdentityPairAsync({ digits: entry.digits, lid: null }, sock);
-        } else if (entry.lid && !entry.digits) {
-            await resolveIdentityPairAsync({ digits: null, lid: entry.lid }, sock);
-        }
     }
 
     return checkIsPremium(ctx);
