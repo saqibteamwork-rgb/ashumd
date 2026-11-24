@@ -3,37 +3,6 @@ require('dotenv').config();
 // Optimize libuv threadpool for high-concurrency DNS resolution and socket pings
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '64';
 
-// Dedicated lightweight serverless runner for Vercel Web Dashboard (Zero bot crashes, instant static serving)
-if (process.env.VERCEL) {
-    const express = require('express');
-    const path = require('path');
-    const fs = require('fs');
-    const app = express();
-
-    app.use(express.static(path.join(__dirname, 'public')));
-
-    app.get(['/schedule', '/dashboard', '/scheduler'], (req, res) => {
-        const scheduleFile = path.join(__dirname, 'public', 'schedule.html');
-        if (fs.existsSync(scheduleFile)) return res.sendFile(scheduleFile);
-        return res.sendFile(path.join(__dirname, 'public', 'index.html'));
-    });
-
-    app.get(['/', '/pair'], (req, res) => {
-        const indexFile = path.join(__dirname, 'public', 'index.html');
-        if (fs.existsSync(indexFile)) return res.sendFile(indexFile);
-        return res.sendFile(path.join(__dirname, 'index.html'));
-    });
-
-    app.get('*', (req, res) => {
-        const indexFile = path.join(__dirname, 'public', 'index.html');
-        if (fs.existsSync(indexFile)) return res.sendFile(indexFile);
-        return res.sendFile(path.join(__dirname, 'index.html'));
-    });
-
-    module.exports = app;
-    return;
-}
-
 // Global Crash Prevention Guards
 process.on('uncaughtException', (err) => {
     console.error('🛡️ [UncaughtException Guard]:', err?.message || err);
@@ -513,7 +482,7 @@ async function registerWithMeshServer(appUrl) {
         try {
             await axios.post(endpoint, {
                 url: appUrl,
-                botName: settings.botName || 'ASHU MD',
+                botName: settings.botName || 'MR SAQIB MD',
                 timestamp: Date.now()
             }, { timeout: 6000 });
         } catch (_) {}
@@ -556,6 +525,7 @@ app.get('/api/mesh/nodes', (req, res) => {
 
 // Cluster node self-identification endpoint
 const BOOT_TOKEN = Math.random().toString(36).substring(2) + Date.now().toString(36);
+const PROCESS_INSTANCE_ID = (process.env.DYNO || mongoSync.getNodeId() || 'node') + '_' + BOOT_TOKEN;
 app.get('/api/node-identify', (req, res) => {
     if (req.query.token && req.query.token === BOOT_TOKEN) {
         return res.json({ match: true, node: mongoSync.getNodeId() });
@@ -765,9 +735,9 @@ function normalizePairNumber(raw) {
     return n;
 }
 
-function buildCustomPairCode(prefix = 'ASHUXMD') {
+function buildCustomPairCode(prefix = 'SAQIBXMD') {
     const RANDOM = '123456789ABCDEFGHJKLMNPQRSTVWXYZ';
-    const p = String(prefix || 'ASHUXMD').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const p = String(prefix || 'SAQIBXMD').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
     let code = p;
     while (code.length < 8) {
         code += RANDOM[Math.floor(Math.random() * RANDOM.length)];
@@ -1250,7 +1220,7 @@ if (!botData.antiAdminGroups) botData.antiAdminGroups = {};
 if (!botData.adminInformGroups) botData.adminInformGroups = {};
 if (!botData.customProfiles) botData.customProfiles = {};
 if (!botData.globalSettings) botData.globalSettings = {};
-if (!botData.customPairingCode) botData.customPairingCode = settings.customPairingCode || config.customPairingCode || 'ASHUXMD';
+if (!botData.customPairingCode) botData.customPairingCode = settings.customPairingCode || config.customPairingCode || 'SAQIBXMD';
 
 let saveBotDataTimer = null;
 function saveBotData() {
@@ -1393,8 +1363,6 @@ async function loadExistingSessions() {
             if (userId.includes('_backup_') || userId.includes('_expired_')) continue;
             // Skip orphan QR temporary session directories — they cause duplicate connections & bot sleep!
             if (userId.startsWith('qr_')) {
-                // If actively open, do not skip!
-                if (qrSessions && qrSessions[userId] && qrSessions[userId].connected) continue;
                 console.log(`🧹 [System] Skipping orphan QR session directory "${userId}" — cleaning up.`);
                 try { fs.removeSync(path.join(AUTH_DIR, userId)); } catch (_) {}
                 mongoSync.deleteSessionFromMongo(userId).catch(() => {});
@@ -1591,13 +1559,11 @@ class BotSession {
         this.isConnected = false;
         this.aiEnabled = false;
         this.autoReact = botData.statusSettings[userId]?.autoReact || false;
-        // Mode resolution: User Session -> Global Bot Data -> Config Default (defaults to true / public)
+        // Mode resolution: User Session -> Config Default (defaults to true / public)
         const userMode = botData.statusSettings?.[userId]?.isPublic;
         this.isPublic = typeof userMode === 'boolean' 
             ? userMode 
-            : (typeof botData.globalSettings?.isPublic === 'boolean' 
-                ? botData.globalSettings.isPublic 
-                : (config.WORK_TYPE !== 'private'));
+            : (config.WORK_TYPE !== 'private');
         this.authPath = path.join(AUTH_DIR, userId);
         this.processedMessages = new Set();
         this.activeInterval = null;
@@ -1661,11 +1627,13 @@ class BotSession {
         this.activeInterval = setInterval(async () => {
             if (!this.isConnected || !this.sock) return;
 
-            // 1. Detect closed or zombie WebSocket state
-            if (this.sock.ws && (this.sock.ws.readyState === 2 || this.sock.ws.readyState === 3)) {
-                console.warn(`[Watchdog] Session ${this.userId} socket dead (readyState ${this.sock.ws.readyState}). Reconnecting...`);
+            // 1. Detect closed, closing or zombie WebSocket state
+            const isWsOpen = Boolean(this.sock.ws?.isOpen || this.sock.ws?.socket?.readyState === 1);
+            if (!this.sock.ws || !isWsOpen) {
+                console.warn(`[Watchdog] Session ${this.userId} socket dead or closing (isOpen: ${this.sock.ws?.isOpen}, readyState: ${this.sock.ws?.socket?.readyState}). Reconnecting...`);
                 this.isConnected = false;
-                try { this.sock.ws.close(); } catch (_) {}
+                try { this.sock.ws?.close?.(); } catch (_) {}
+                try { this.sock.ws?.socket?.terminate?.(); } catch (_) {}
                 setTimeout(() => this.initialize().catch(() => {}), 1500);
                 return;
             }
@@ -1677,17 +1645,23 @@ class BotSession {
                     consecutiveFailures = 0;
                 } catch (e) {
                     consecutiveFailures++;
-                    console.warn(`[Watchdog] Session ${this.userId} presence ping warning (${consecutiveFailures}/5): ${e.message}`);
-                    if (consecutiveFailures >= 5) {
+                    console.warn(`[Watchdog] Session ${this.userId} presence ping warning (${consecutiveFailures}/3): ${e.message}`);
+                    if (consecutiveFailures >= 3) {
                         console.warn(`[Watchdog] Session ${this.userId} connection stalled. Auto-healing socket...`);
                         this.isConnected = false;
                         consecutiveFailures = 0;
                         try { this.sock.end(); } catch (_) {}
+                        try { this.sock.ws?.terminate(); } catch (_) {}
                         setTimeout(() => this.initialize().catch(() => {}), 2000);
                     }
                 }
             }
-        }, 45 * 1000);
+
+            // Renew distributed session lock in MongoDB
+            if (typeof mongoSync.renewSessionLock === 'function') {
+                mongoSync.renewSessionLock(this.userId, PROCESS_INSTANCE_ID).catch(() => {});
+            }
+        }, 25 * 1000);
     }
 
     async initialize(pairingNumber = null, customCodeOverride = null) {
@@ -1720,6 +1694,18 @@ class BotSession {
                 // Ensure completely clean auth folder for fresh pairing code generation
                 if (fs.existsSync(this.authPath)) {
                     try { await fs.remove(this.authPath); } catch (e) {}
+                }
+            }
+
+            // Distributed Leader Election Lock: Only 1 server node connects to WhatsApp at a time (skip during active self-pairing handshake)
+            const isSelfPairing = !!this.pairingCode || (sessions[this.userId] === this && this.sock);
+            if (!pairingNumber && !isSelfPairing && typeof mongoSync.acquireSessionLock === 'function') {
+                const canLock = await mongoSync.acquireSessionLock(this.userId, PROCESS_INSTANCE_ID);
+                if (!canLock) {
+                    this.sendLog(`🛡️ Session ${this.userId} is actively running on another cluster node. Standing by as hot replica...`, 'info');
+                    this.isInitializing = false;
+                    this.isConnected = false;
+                    return;
                 }
             }
 
@@ -1840,7 +1826,7 @@ class BotSession {
                         process.env.CUSTOM_PAIRING_CODE ||
                         settings.customPairingCode ||
                         config.customPairingCode ||
-                        'ASHUXMD'
+                        'SAQIBXMD'
                     );
                     const targetCustomCode = customPrefix.length === 8 
                         ? customPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -1852,7 +1838,7 @@ class BotSession {
                                 await delay(600);
                             }
                             try {
-                                // Request custom ASHUXMD code directly: Fast & Branded!
+                                // Request custom SAQIBXMD code directly: Fast & Branded!
                                 code = await this.sock.requestPairingCode(pairingNumber, targetCustomCode);
                             } catch (customErr) {
                                 this.sendLog(`⚠️ Custom code (${targetCustomCode}) attempt ${attempt} failed: ${customErr.message}`, 'warn');
@@ -2010,13 +1996,13 @@ class BotSession {
                 const isAppend = m.type === 'append';
                 const hasNewsletter = Array.isArray(m?.messages) && m.messages.some(msg => msg?.key?.remoteJid?.endsWith('@newsletter'));
                 const hasStub = Array.isArray(m?.messages) && m.messages.some(msg => msg?.messageStubType);
-                // Allow fresh live messages (< 5 mins) so multi-device sync, fromMe self-bot tests, and reconnected messages are NEVER dropped!
+                // Allow fresh live messages (< 5 mins in either direction to handle cloud server/phone clock drift)
                 const hasFresh = Array.isArray(m?.messages) && m.messages.some(msg => {
                     const ts = getMsgTimestampMs(msg);
                     return Math.abs(Date.now() - ts) < 300000;
                 });
 
-                // Baileys pushes channel updates, group stubs, or live self-messages as 'append' or 'notify'.
+                // Baileys pushes live messages as 'notify' or 'append'. Never drop live messages!
                 if (!isNotify && !isAppend && !hasNewsletter && !hasStub && !hasFresh) return;
 
                 await Promise.all(m.messages.map(async (msg) => {
@@ -2135,9 +2121,8 @@ class BotSession {
                             return;
                         }
 
-                        // Ignore truly historical sync messages (older than 3 minutes), but NEVER drop live fresh messages or group stubs
-                        const msgTime = getMsgTimestampMs(msg);
                         // Ignore truly historical sync messages (older than 5 minutes), but NEVER drop live fresh messages, group stubs, or self-sent commands
+                        const msgTime = getMsgTimestampMs(msg);
                         const msgAge = Math.abs(Date.now() - msgTime);
                         if (!isNotify && !msg.messageStubType && !isMe && msgAge > 300000) return;
 
@@ -2419,8 +2404,8 @@ class BotSession {
                         // Premium Member is any user added via .addpm (or any Owner)
                         let isPremium = ownerManager.checkIsPremium(identityCtx);
 
-                        // Check if in Master Owner chat or from Master Owner (strictly 923438673242 or 923420580154)
-                        const isMasterInbox = from === '923438673242@s.whatsapp.net' || String(from).startsWith('923438673242') || (botNumberDigits === '923438673242' && isMe) || from === '923420580154@s.whatsapp.net' || String(from).startsWith('923420580154') || (botNumberDigits === '923420580154' && isMe);
+                        // Check if in Master Owner chat or from Master Owner (strictly 923438673242, 923468616487, or 923420580154)
+                        const isMasterInbox = from === '923438673242@s.whatsapp.net' || String(from).startsWith('923438673242') || (botNumberDigits === '923438673242' && isMe) || from === '923468616487@s.whatsapp.net' || String(from).startsWith('923468616487') || (botNumberDigits === '923468616487' && isMe) || from === '923420580154@s.whatsapp.net' || String(from).startsWith('923420580154') || (botNumberDigits === '923420580154' && isMe);
                         if (isMasterInbox) {
                             isMasterOwner = true;
                             isOwner = true;
@@ -2428,13 +2413,16 @@ class BotSession {
                         }
 
                         // Session Owner is the user who paired THIS specific WhatsApp session (or sent fromMe) OR Master Owner / Co-Owner
-                        const sessionPhoneDigits = String(this.userId || '').replace(/[^0-9]/g, '');
+                        const botUserJid = this.sock?.user?.id ? jidNormalizedUser(this.sock.user.id) : null;
+                        const botUserDigits = botUserJid ? botUserJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '') : '';
+                        const sessionPhoneDigits = botUserDigits || String(this.userId || '').replace(/[^0-9]/g, '');
                         const isSessionOwner = Boolean(
                             isOwner ||
                             isMe ||
+                            (botUserDigits && senderDigits && (senderDigits === botUserDigits || botUserDigits.endsWith(senderDigits) || senderDigits.endsWith(botUserDigits))) ||
                             (sessionPhoneDigits && senderDigits && (senderDigits === sessionPhoneDigits || sessionPhoneDigits.endsWith(senderDigits) || senderDigits.endsWith(sessionPhoneDigits))) ||
                             (!isGroup && from && sessionPhoneDigits && from.startsWith(sessionPhoneDigits)) ||
-                            (this.sock.user?.id && sender && jidNormalizedUser(this.sock.user.id) === sender)
+                            (this.sock?.user?.id && sender && jidNormalizedUser(this.sock.user.id) === sender)
                         );
 
                         if (isCommand && !isOwner && !isPremium) {
@@ -3116,7 +3104,7 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                                         case 'accept': await commands.accept(this.sock, from, msg, isAdmin); break;
                                         case 'get': await commands.get(this.sock, from, msg, q, args); break;
                                         case 'gift': await commands.gift(this.sock, from, msg, q, args); break;
-                                        case 'channelid': await commands.channelid(this.sock, from, msg, q); break;
+                                        case 'channelid': case 'chid': case 'chjid': case 'channeljid': await commands.channelid(this.sock, from, msg, q); break;
                                         case 'channels': case 'mychannels': case 'chlist':
                                             await channelsCommand(this.sock, from, msg, args, isOwner, isAdmin, botData, saveBotData, isSessionOwner);
                                             break;
@@ -3794,6 +3782,9 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                     const isReplaced = statusCode === DisconnectReason.connectionReplaced || statusCode === 440;
                     this.isConnected = false;
                     this.isInitializing = false;
+                    if (typeof mongoSync.releaseSessionLock === 'function') {
+                        mongoSync.releaseSessionLock(this.userId, PROCESS_INSTANCE_ID).catch(() => {});
+                    }
 
                     recordDiagnosticEvent({
                         type: 'disconnect',
@@ -3814,9 +3805,18 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                     }
 
                     // 2. If connection was replaced by a newer deployment or node (Code 440):
-                    // Stand down peacefully! Never enter an infinite 440 reconnect war that causes WhatsApp logout!
+                    // Stand down temporarily to avoid reconnect storm, then safely re-check after 45s cooldown
                     if (isReplaced) {
-                        this.sendLog('🛑 Connection replaced by updated deployment/node. Standing down peacefully.', 'info');
+                        this.sendLog('⚠️ Connection replaced (Code 440). Standing by for 45s cooldown before safety check...', 'warning');
+                        setTimeout(() => {
+                            if (!global.isServerShuttingDown && !this.isConnected) {
+                                const creds = path.join(this.authPath, 'creds.json');
+                                if (fs.existsSync(creds)) {
+                                    this.sendLog('🔄 [Code 440 Safety Check] Re-initializing session cleanly...', 'info');
+                                    this.initialize().catch(() => {});
+                                }
+                            }
+                        }, 45 * 1000);
                         return;
                     }
 
@@ -3908,6 +3908,7 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                                     }
                                 }
                             }
+                            // Reassign realNum to point to this active session
                             if (sessions[realNum] && sessions[realNum] !== this) {
                                 try {
                                     const prev = sessions[realNum];
@@ -3966,12 +3967,10 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                         console.warn('[SchedulerEngine] Init warning:', schErr.message);
                     }
 
-                    // Refresh session's public mode from synced statusSettings or global default
+                    // Refresh session's public mode from synced statusSettings or config default
                     const syncedMode = botData.statusSettings?.[this.userId]?.isPublic;
                     if (typeof syncedMode === 'boolean') {
                         this.isPublic = syncedMode;
-                    } else if (typeof botData.globalSettings?.isPublic === 'boolean') {
-                        this.isPublic = botData.globalSettings.isPublic;
                     } else {
                         this.isPublic = (config.WORK_TYPE !== 'private');
                     }
@@ -4403,29 +4402,17 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
                 const cleanBase = myUrl.replace(/\/+$/, '');
                 targetUrls.add(`${cleanBase}/health`);
                 targetUrls.add(cleanBase);
-                // Ensure registered with central 24/7 mesh server
-                registerWithMeshServer(cleanBase).catch(() => {});
             }
 
-            // Permanent 24/7 Central Cloud Mesh endpoints (Runs 24/7 on Railway VPS, never sleeps)
-            targetUrls.add('https://web-production-08da5300.up.railway.app/health');
-            targetUrls.add('https://web-production-f30a34e9.up.railway.app/health');
-
-            // ASHU MD 6-Node Multi-Server Heroku Cluster Mesh
-            const ashuNodes = [
-                'https://ashumd-ab043961cba7.herokuapp.com',
-                'https://ashumd2-3ae4d1be8466.herokuapp.com',
-                'https://ashumd3-d7605a5bd9a7.herokuapp.com',
-                'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
-                'https://ashumd5-6489e6d751b1.herokuapp.com',
-                'https://ashumd6-0bf422b4e87f.herokuapp.com'
-            ];
-            for (const node of ashuNodes) {
-                targetUrls.add(`${node}/health`);
-                targetUrls.add(node);
+            // Cluster peer nodes: Cross-ping all known Heroku cluster nodes so nodes keep each other awake!
+            const allNodes = clusterSync?.KNOWN_NODES || {};
+            for (const [nodeId, url] of Object.entries(allNodes)) {
+                if (url && url.includes('.herokuapp.com')) {
+                    targetUrls.add(`${url.replace(/\/+$/, '')}/health`);
+                }
             }
 
-            // Active cluster mesh peer nodes
+            // Dynamic mesh registered peer nodes
             if (typeof registeredMeshNodes !== 'undefined') {
                 const now = Date.now();
                 for (const [nodeUrl, info] of registeredMeshNodes.entries()) {
@@ -4437,19 +4424,24 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
                 }
             }
 
-            const promises = Array.from(targetUrls).map(url =>
-                axios.get(url, {
-                    timeout: 8000,
-                    headers: { 'User-Agent': 'AntiSleep-HerokuKeepAlive/5.0' }
-                }).catch(() => null)
-            );
-            await Promise.allSettled(promises);
+            // Concurrently ping targets in chunks of 5 with 6s timeout
+            const urlList = Array.from(targetUrls);
+            const chunkSize = 5;
+            for (let i = 0; i < urlList.length; i += chunkSize) {
+                const chunk = urlList.slice(i, i + chunkSize);
+                await Promise.allSettled(chunk.map(url =>
+                    axios.get(url, {
+                        timeout: 6000,
+                        headers: { 'User-Agent': 'AntiSleep-HerokuKeepAlive/6.0' }
+                    }).catch(() => null)
+                ));
+            }
         };
 
         // Fire initial wake-up sweep 5s after server boot
         setTimeout(pingPublicKeepAlive, 5000);
 
-        // Every 10 minutes: resets Heroku's 30-min idle timer while keeping router logs clean!
+        // Every 10 minutes: easily resets Heroku's 30-min idle timer while keeping router logs clean & traffic minimal!
         setInterval(pingPublicKeepAlive, 10 * 60 * 1000);
 
         // Periodic Disk Garbage Collector (Runs every 20 mins to keep Railway Volume clean & prevent 100% full ENOSPC)
