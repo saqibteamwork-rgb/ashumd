@@ -901,17 +901,26 @@
     function getTargetServerNode() {
       if (selectedServerMode !== 'auto' && CLUSTER[selectedServerMode]) {
         const node = CLUSTER[selectedServerMode];
-        if (node.online) return node;
+        if (node.online && (node.active || 0) < (node.maxSessions || 4) && (node.mem || 0) < 470) return node;
       }
       const onlineNodes = Object.values(CLUSTER).filter(n => n.online);
       if (onlineNodes.length === 0) return CLUSTER.s1;
+      const underCap = onlineNodes.filter(n => (n.active || 0) < (n.maxSessions || 4) && (n.mem || 0) < 470);
+      const pool = underCap.length > 0 ? underCap : onlineNodes;
+      pool.sort((a, b) => (a.active - b.active) || ((a.mem || 0) - (b.mem || 0)));
+      const minActive = pool[0].active;
+      const candidates = pool.filter(n => n.active <= minActive);
       autoCounter++;
-      return onlineNodes[autoCounter % onlineNodes.length];
+      return candidates[autoCounter % candidates.length];
     }
 
     function getAlternativeServerNode(currentNode) {
       const candidates = Object.values(CLUSTER).filter(n => n.id !== currentNode.id && n.online);
-      return candidates.length > 0 ? candidates[0] : CLUSTER.railway;
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => (a.active - b.active) || ((a.mem || 0) - (b.mem || 0)));
+        return candidates[0];
+      }
+      return CLUSTER.s1;
     }
 
     // Ping Cluster Nodes
@@ -939,8 +948,10 @@
             const data = await res.json();
             node.online = true;
             node.ping = latency;
-            const active = data.activeSessions || data.pairedSessions || 0;
+            const active = (typeof data.activeSessions === 'number') ? data.activeSessions : (data.pairedSessions || 0);
             node.active = active;
+            node.maxSessions = data.maxSessions || 4;
+            node.mem = data.memoryUsageMb || 0;
             totalPaired += active;
             onlineCount++;
 
