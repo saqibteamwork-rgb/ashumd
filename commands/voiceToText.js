@@ -4,25 +4,12 @@
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const FormData = require('form-data');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+const { getFfmpeg } = require('../lib/lazyMedia');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const settings = require('../settings');
-
-let ffmpegPath = ffmpegStatic;
-try {
-    if (!ffmpegPath || !fsSync.existsSync(ffmpegPath)) {
-        ffmpegPath = require('@ffmpeg-installer/ffmpeg').path || 'ffmpeg';
-    }
-} catch (_) {
-    ffmpegPath = 'ffmpeg';
-}
-if (ffmpegPath) {
-    try { ffmpeg.setFfmpegPath(ffmpegPath); } catch (_) {}
-}
 
 let cachedGroqKey = '';
 const _fbTokens = ['Z3NrX2NrMXFMZmZkTGRCc', 'FA2ZThiR1M1V0dkeWIzRllFMG', 'N3T29rMEpYY3VqcnNpZnRhRU5Xb0U='];
@@ -247,7 +234,7 @@ Iske baad bot har voice note ko instantly text me transcribe karega!`
         // Try converting Opus audio to 16kHz Mono MP3 for Whisper; fallback to original if ffmpeg not available
         try {
             await new Promise((resolve, reject) => {
-                ffmpeg(inPath)
+                getFfmpeg()(inPath)
                     .toFormat('mp3')
                     .audioChannels(1)
                     .audioFrequency(16000)

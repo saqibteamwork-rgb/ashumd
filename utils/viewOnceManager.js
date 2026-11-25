@@ -52,8 +52,9 @@ function addLog(type, msgId, details = {}) {
     if (debugLogs.length > 80) debugLogs.shift();
 }
 
-const MAX_CACHE_ENTRIES = 300;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHE_ENTRIES = 80;
+const MAX_MEDIA_CACHE_ITEMS = 30;
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours (disk-backed)
 
 /**
  * Robust 6-level recursive unwrap for all WhatsApp wrappers
@@ -211,7 +212,7 @@ function cleanupExpiredCache() {
     } catch (_) {}
 }
 
-setInterval(cleanupExpiredCache, 60 * 60 * 1000); // Hourly check
+setInterval(cleanupExpiredCache, 15 * 60 * 1000); // Trim every 15 mins to keep RAM lean across 25 sessions
 
 /**
  * Intercept incoming messages
@@ -226,8 +227,12 @@ async function processIncoming(sock, msg, opts = {}) {
         const isVO = isViewOnceMessage(msg);
         const details = extractMediaDetails(msg);
 
-        // Always store raw intact message in rawStore for Layer 2 & Baileys getMessage
-        if (details && rawStore.size < MAX_CACHE_ENTRIES) {
+        // Always store raw intact message in rawStore for Layer 2 & Baileys getMessage (bounded FIFO)
+        if (details) {
+            if (rawStore.size >= MAX_CACHE_ENTRIES) {
+                const oldestRaw = rawStore.keys().next().value;
+                if (oldestRaw) rawStore.delete(oldestRaw);
+            }
             rawStore.set(msgId, {
                 id: msgId,
                 chatId: msg.key?.remoteJid,
@@ -299,7 +304,7 @@ async function processIncoming(sock, msg, opts = {}) {
             // Memory Shield: Free heavy buffer from RAM once saved to disk. resolveMedia will read from diskPath.
             delete cachedItem.buffer;
             mediaCache.set(msgId, cachedItem);
-            if (mediaCache.size > 50) {
+            if (mediaCache.size > MAX_MEDIA_CACHE_ITEMS) {
                 const oldest = mediaCache.keys().next().value;
                 mediaCache.delete(oldest);
             }

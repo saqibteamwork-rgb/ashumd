@@ -2,20 +2,26 @@
 'use strict';
 
 const axios = require('axios');
-const cheerio = require('cheerio');
+const { getCheerio } = require('../lib/lazyMedia');
 const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
 
-let ruhendLib = null;
-try {
-    ruhendLib = require('ruhend-scraper');
-} catch (e) {}
+let _ruhendLib;
+function getRuhend() {
+    if (_ruhendLib === undefined) {
+        try { _ruhendLib = require('ruhend-scraper'); } catch { _ruhendLib = null; }
+    }
+    return _ruhendLib;
+}
 
-let btchLib = null;
-try {
-    btchLib = require('btch-downloader');
-} catch (e) {}
+let _btchLib;
+function getBtch() {
+    if (_btchLib === undefined) {
+        try { _btchLib = require('btch-downloader'); } catch { _btchLib = null; }
+    }
+    return _btchLib;
+}
 
 /**
  * Extract clean Instagram URL from query or message object
@@ -91,7 +97,7 @@ async function engineSaveInsta(targetUrl) {
     });
 
     if (searchRes.data?.status === 'ok' && searchRes.data?.data) {
-        const $ = cheerio.load(searchRes.data.data);
+        const $ = getCheerio().load(searchRes.data.data);
         const media = [];
 
         $('ul.download-box li').each((i, el) => {
@@ -172,6 +178,7 @@ async function engineCloudAPI(targetUrl) {
  * Engine 3: Ruhend Scraper (igdl2 SnapSave fallback)
  */
 async function engineRuhend(targetUrl) {
+    const ruhendLib = getRuhend();
     if (!ruhendLib) throw new Error('ruhend-scraper not installed');
     if (typeof ruhendLib.igdl2 === 'function') {
         const res = await ruhendLib.igdl2(targetUrl);
@@ -206,6 +213,7 @@ async function engineRuhend(targetUrl) {
  * Engine 4: btch-downloader
  */
 async function engineBtch(targetUrl) {
+    const btchLib = getBtch();
     if (!btchLib || !btchLib.igdl) throw new Error('btch-downloader not available');
     const res = await btchLib.igdl(targetUrl);
     if (!res || !res.status || !res.result || res.result.length === 0) {

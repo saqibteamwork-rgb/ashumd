@@ -1,7 +1,7 @@
 // plugins/tool-remini.js - Fast & Reliable HD Image Enhancer using Sharp
 'use strict';
 
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 const { cmd } = require("../command");
 
 cmd({
@@ -26,7 +26,7 @@ cmd({
       return reply("❌ Failed to download media.");
     }
 
-    const enhancedBuffer = await sharp(mediaBuffer, { pages: 1 })
+    const enhancedBuffer = await getSharp()(mediaBuffer, { pages: 1 })
       .sharpen({ sigma: 1.5, m1: 1.3, m2: 0.7 })
       .normalize()
       .modulate({ brightness: 1.04, saturation: 1.08 })

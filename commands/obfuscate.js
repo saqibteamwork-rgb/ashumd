@@ -10,7 +10,8 @@
  * ============================================================================
  */
 
-const JavaScriptObfuscator = require('javascript-obfuscator');
+let _jsObfuscator = null;
+const getObfuscator = () => (_jsObfuscator || (_jsObfuscator = require('javascript-obfuscator')));
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const settings = require('../settings');
 
@@ -77,7 +78,7 @@ async function obfuscateCommand(sock, from, msg, args = []) {
     await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } }).catch(() => {});
 
     try {
-        const obfuscationResult = JavaScriptObfuscator.obfuscate(jsCode, {
+        const obfuscationResult = getObfuscator().obfuscate(jsCode, {
             compact: true,
             controlFlowFlattening: true,
             controlFlowFlatteningThreshold: 0.8,

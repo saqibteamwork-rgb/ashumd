@@ -16,7 +16,7 @@
  */
 
 const { downloadContentFromMessage, jidNormalizedUser } = require('@whiskeysockets/baileys');
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 const settings = require('../settings');
 
 /**
@@ -108,6 +108,7 @@ async function extractImageBuffer(msg) {
  * By default: 100% Full Edge-to-Edge HD (Zero Sidebars, Zero Blur, Smart Attention / Face Focus)
  */
 async function processFullDP(buffer, modeArg = '') {
+    const sharp = getSharp();
     const img = sharp(buffer);
     const meta = await img.metadata();
     const w = meta.width || 720;

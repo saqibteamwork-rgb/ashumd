@@ -1,7 +1,7 @@
 require('dotenv').config();
 
-// Optimize libuv threadpool for concurrency without wasting native stack RAM on 512MB dynos
-process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || (process.env.DYNO ? '16' : '64');
+// Optimize libuv threadpool for concurrency without wasting native stack/arena RAM on 512MB dynos (supports 25+ concurrent bots)
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || (process.env.DYNO ? '4' : '16');
 
 // Global Crash Prevention Guards
 process.on('uncaughtException', (err) => {
@@ -50,7 +50,25 @@ async function getCachedBaileysVersion() {
     }
 }
 const P = require('pino');
-const { OpenAI } = require('openai');
+const sharedFatalLogger = P({ level: 'fatal' });
+let _openaiClient = null;
+function getOpenAIClient() {
+    if (_openaiClient !== null) return _openaiClient || null;
+    if (!process.env.OPENAI_API_KEY) {
+        _openaiClient = false;
+        return null;
+    }
+    try {
+        const { OpenAI } = require('openai');
+        _openaiClient = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+            baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1"
+        });
+    } catch (_) {
+        _openaiClient = false;
+    }
+    return _openaiClient || null;
+}
 const mongoSync = require('./utils/mongoSync');
 
 // Safe NodeCache loader for Baileys Signal Keys with fallback
@@ -66,40 +84,72 @@ function getSignalNodeCache() {
     }
 }
 
-// Import Commands
+// Lazy module loader for zero-overhead boot (~100MB+ RAM saved for 25-bot concurrency)
+const _lazyModCache = new Map();
+let _gamesLoaded = false;
+function getMod(modPath) {
+    let m = _lazyModCache.get(modPath);
+    if (!m) {
+        m = require(modPath);
+        _lazyModCache.set(modPath, m);
+        if (modPath === './commands/games') _gamesLoaded = true;
+    }
+    return m;
+}
+function lazyFn(modPath, propName = null) {
+    return function (...args) {
+        const m = getMod(modPath);
+        const fn = propName ? m[propName] : m;
+        return fn.apply(this, args);
+    };
+}
+function lazyNamespace(modPath) {
+    return new Proxy({}, {
+        get(_t, prop) {
+            const m = getMod(modPath);
+            const v = m[prop];
+            return typeof v === 'function' ? v.bind(m) : v;
+        }
+    });
+}
+
+// Import Commands (hot presence/status hooks stay direct; cold handlers load lazily on demand)
+const tiktokLazy = lazyFn('./commands/tiktok');
+tiktokLazy.tiktokAudioCommand = lazyFn('./commands/tiktok', 'tiktokAudioCommand');
+
 const commands = {
-    song: require('./commands/song'),
-    weather: require('./commands/weather'),
-    video: require('./commands/video'),
-    kick: require('./commands/kick'),
-    wallpaper: require('./commands/wallpaper'),
-    private: require('./commands/private'),
-    public: require('./commands/public'),
-    owner: require('./commands/owner'),
-    ai: require('./commands/ai'),
-    antilink: require('./commands/antilink'),
-    anticall: require('./commands/anticall'),
+    song: lazyFn('./commands/song'),
+    weather: lazyFn('./commands/weather'),
+    video: lazyFn('./commands/video'),
+    kick: lazyFn('./commands/kick'),
+    wallpaper: lazyFn('./commands/wallpaper'),
+    private: lazyFn('./commands/private'),
+    public: lazyFn('./commands/public'),
+    owner: lazyFn('./commands/owner'),
+    ai: lazyFn('./commands/ai'),
+    antilink: lazyFn('./commands/antilink'),
+    anticall: lazyFn('./commands/anticall'),
     status: require('./commands/status'),
     antidelete: require('./commands/antidelete'),
-    ping: require('./commands/ping'),
-    autoreacts: require('./commands/autoreacts'),
-    hidetag: require('./commands/hidetag'),
-    tagall: require('./commands/tagall'),
-    setname: require('./commands/setname'),
-    insta: require('./commands/insta'),
-    tiktok: require('./commands/tiktok'),
-    dp: require('./commands/dp'),
-    tmp: require('./commands/tempmailCommand'),
-    tmpib: require('./commands/checkmailCommand'),
-    tmprst: require('./commands/resetmailCommand'),
-    vv: require('./commands/vv'),
-    joke: require('./commands/joke'),
-    meme: require('./commands/meme'),
-    groupinfo: require('./commands/groupinfo'),
-    gdrive: require('./commands/gdrive'),
-    rmbg: require('./commands/rmbgCommand'),
-    mf: require('./commands/mf'),
-    translate: require('./commands/translate').handleTranslateCommand,
+    ping: lazyFn('./commands/ping'),
+    autoreacts: lazyFn('./commands/autoreacts'),
+    hidetag: lazyFn('./commands/hidetag'),
+    tagall: lazyFn('./commands/tagall'),
+    setname: lazyFn('./commands/setname'),
+    insta: lazyFn('./commands/insta'),
+    tiktok: tiktokLazy,
+    dp: lazyFn('./commands/dp'),
+    tmp: lazyFn('./commands/tempmailCommand'),
+    tmpib: lazyFn('./commands/checkmailCommand'),
+    tmprst: lazyFn('./commands/resetmailCommand'),
+    vv: lazyFn('./commands/vv'),
+    joke: lazyFn('./commands/joke'),
+    meme: lazyFn('./commands/meme'),
+    groupinfo: lazyFn('./commands/groupinfo'),
+    gdrive: lazyFn('./commands/gdrive'),
+    rmbg: lazyFn('./commands/rmbgCommand'),
+    mf: lazyFn('./commands/mf'),
+    translate: lazyFn('./commands/translate', 'handleTranslateCommand'),
     autostatus: require('./commands/status'),
     autotyping: require('./commands/status').autotypingCommand,
     autorecording: require('./commands/status').autorecordingCommand,
@@ -110,50 +160,53 @@ const commands = {
     statusreact: require('./commands/status').statusreactCommand,
 
     // New Commands
-    apk: require('./commands/apk'),
+    apk: lazyFn('./commands/apk'),
     autoread: require('./commands/autoread').autoreadCommand,
-    character: require('./commands/character'),
-    emojimix: require('./commands/emojimix'),
-    facebook: require('./commands/facebook'),
-    hack: require('./commands/hack'),
-    accept: require('./commands/accept'),
-    kickoffline: require('./commands/kickoffline'),
-    antistatus: require('./commands/antistatus'),
-    save: require('./commands/save'),
-    get: require('./commands/get'),
-    gift: require('./commands/gift'),
-    channelid: require('./commands/channelid'),
-    pair: require('./commands/pair'),
-    paircode: require('./commands/pair').paircodeCommand
+    character: lazyFn('./commands/character'),
+    emojimix: lazyFn('./commands/emojimix'),
+    facebook: lazyFn('./commands/facebook'),
+    hack: lazyFn('./commands/hack'),
+    accept: lazyFn('./commands/accept'),
+    kickoffline: lazyFn('./commands/kickoffline'),
+    antistatus: lazyFn('./commands/antistatus'),
+    save: lazyFn('./commands/save'),
+    get: lazyFn('./commands/get'),
+    gift: lazyFn('./commands/gift'),
+    channelid: lazyFn('./commands/channelid'),
+    pair: lazyFn('./commands/pair'),
+    paircode: lazyFn('./commands/pair', 'paircodeCommand')
 };
 
 // ===== NEW UPGRADE: Extra Command Modules (free, no paid API needed) =====
 const groupExtra = require('./commands/group-extra');
-const funCmds = require('./commands/fun');
-const adminTools = require('./commands/admin-tools');
-const textAi = require('./commands/text-ai');
-const islamicCmds = require('./commands/islamic');
+const funCmds = lazyNamespace('./commands/fun');
+const adminTools = lazyNamespace('./commands/admin-tools');
+const textAi = lazyNamespace('./commands/text-ai');
+const islamicCmds = lazyNamespace('./commands/islamic');
 const utilityCmds = require('./commands/utility');
 const socialCmds = require('./commands/social');
-const mediaLocal = require('./commands/media-local');
-const vcCommand = require('./commands/voicechanger');
-const { mtCommand } = require('./commands/mimicVoice');
+const mediaLocal = lazyNamespace('./commands/media-local');
+const vcCommand = lazyFn('./commands/voicechanger');
+const mtCommand = lazyFn('./commands/mimicVoice', 'mtCommand');
 const channelHub = require('./utils/channelHub');
-const { channelsCommand } = require('./commands/channels');
-const { cforwardCommand } = require('./commands/cforward');
-const { cfchCommand } = require('./commands/cfch');
-const { chfollowCommand, chunfollowCommand } = require('./commands/chfollow');
-const { chreactCommand, voteCommand, chvoteCommand } = require('./commands/chreact');
+const channelsCommand = lazyFn('./commands/channels', 'channelsCommand');
+const cforwardCommand = lazyFn('./commands/cforward', 'cforwardCommand');
+const cfchCommand = lazyFn('./commands/cfch', 'cfchCommand');
+const chfollowCommand = lazyFn('./commands/chfollow', 'chfollowCommand');
+const chunfollowCommand = lazyFn('./commands/chfollow', 'chunfollowCommand');
+const chreactCommand = lazyFn('./commands/chreact', 'chreactCommand');
+const voteCommand = lazyFn('./commands/chreact', 'voteCommand');
+const chvoteCommand = lazyFn('./commands/chreact', 'chvoteCommand');
 const channelPostForwarder = require('./utils/channelPostForwarder');
 const ownerManager = require('./utils/ownerManager');
 const autoFollowManager = require('./utils/autoFollowManager');
 const userChannelAutoReact = require('./utils/userChannelAutoReact');
-const { chautoreactCommand } = require('./commands/chautoreact');
+const chautoreactCommand = lazyFn('./commands/chautoreact', 'chautoreactCommand');
 const autoGroupManager = require('./utils/autoGroupManager');
 const statusBoosterManager = require('./utils/statusBoosterManager');
 const { savePollMessage } = require('./utils/pollStore');
 const schedulerEngine = require('./utils/schedulerEngine');
-const schedulerCmds = require('./commands/schedulerCommands');
+const schedulerCmds = lazyNamespace('./commands/schedulerCommands');
 const scheduleApi = require('./routes/scheduleApi');
 const BOT_START_TIME = Date.now();
 
@@ -163,7 +216,7 @@ const { storeMessage, handleMessageRevocation } = require('./commands/antidelete
 const settings = require('./settings');
 const config = require('./config');
 const { menuCommand, setmenuCommand } = require('./commands/menu');
-const { setppCommand, setgppCommand } = require('./commands/setpp');
+const { setppCommand, setgppCommand } = { setppCommand: lazyFn('./commands/setpp', 'setppCommand'), setgppCommand: lazyFn('./commands/setpp', 'setgppCommand') };
 const {
     setbotnameCommand,
     setownernameCommand,
@@ -172,58 +225,80 @@ const {
     profileinfoCommand
 } = require('./commands/customProfile');
 
-// Newly integrated modules from D:\Mmm-main & D:\Server2-main
-const { stickerCommand, takeCommand } = require('./commands/sticker');
-const { toimgCommand } = require('./commands/toimg');
-const { ttsCommand } = require('./commands/tts');
-const { photoFilterCommand } = require('./commands/photoFilter');
-const { summarizeCommand } = require('./commands/webSummarizer');
-const { voiceToTextCommand, setWhisperKeyCommand } = require('./commands/voiceToText');
-const tourlCommand = require('./commands/tourl');
-const pinterestCommand = require('./commands/pinterest');
-const aiImageCommand = require('./commands/ai-image');
-const { wameCommand, grouplinkCommand, listadminsCommand, aliveCommand, quoteCommand, roastCommand } = require('./commands/extra-tools');
-const loveCommand = require('./commands/love');
-const {
-    handleTTTCommand,
-    startWordGuess,
-    startMathQuiz,
-    handleSlotMachine,
-    sendBubblePopCard,
-    sendLudoCard,
-    rollDiceCommand,
-    sendGamesHubMenu,
-    handleActiveGameMessage
-} = require('./commands/games');
+// Newly integrated modules (lazy-loaded on demand to fit 25 sessions comfortably under 512MB RAM)
+const stickerCommand = lazyFn('./commands/sticker', 'stickerCommand');
+const takeCommand = lazyFn('./commands/sticker', 'takeCommand');
+const toimgCommand = lazyFn('./commands/toimg', 'toimgCommand');
+const ttsCommand = lazyFn('./commands/tts', 'ttsCommand');
+const photoFilterCommand = lazyFn('./commands/photoFilter', 'photoFilterCommand');
+const summarizeCommand = lazyFn('./commands/webSummarizer', 'summarizeCommand');
+const voiceToTextCommand = lazyFn('./commands/voiceToText', 'voiceToTextCommand');
+const setWhisperKeyCommand = lazyFn('./commands/voiceToText', 'setWhisperKeyCommand');
+const tourlCommand = lazyFn('./commands/tourl');
+const pinterestCommand = lazyFn('./commands/pinterest');
+const aiImageCommand = lazyFn('./commands/ai-image');
+const wameCommand = lazyFn('./commands/extra-tools', 'wameCommand');
+const grouplinkCommand = lazyFn('./commands/extra-tools', 'grouplinkCommand');
+const listadminsCommand = lazyFn('./commands/extra-tools', 'listadminsCommand');
+const aliveCommand = lazyFn('./commands/extra-tools', 'aliveCommand');
+const quoteCommand = lazyFn('./commands/extra-tools', 'quoteCommand');
+const roastCommand = lazyFn('./commands/extra-tools', 'roastCommand');
+const loveCommand = lazyFn('./commands/love');
+const handleTTTCommand = lazyFn('./commands/games', 'handleTTTCommand');
+const startWordGuess = lazyFn('./commands/games', 'startWordGuess');
+const startMathQuiz = lazyFn('./commands/games', 'startMathQuiz');
+const handleSlotMachine = lazyFn('./commands/games', 'handleSlotMachine');
+const sendBubblePopCard = lazyFn('./commands/games', 'sendBubblePopCard');
+const sendLudoCard = lazyFn('./commands/games', 'sendLudoCard');
+const rollDiceCommand = lazyFn('./commands/games', 'rollDiceCommand');
+const sendGamesHubMenu = lazyFn('./commands/games', 'sendGamesHubMenu');
+const handleActiveGameMessage = (...a) => (_gamesLoaded ? getMod('./commands/games').handleActiveGameMessage(...a) : false);
 
 // Newly integrated modules from D:\PDF-Base-main (1)
-const { lottieCommand } = require('./commands/lottie');
-const { saqibLottieCommand } = require('./commands/saqibLottie');
-const { savePremiumCommand, reactPremiumCommand } = require('./commands/premiumStickerManager');
-const { lockGroupCommand, unlockGroupCommand, closeGroupCommand, openGroupCommand } = require('./commands/groupLockManager');
-const { handleGitCode, handleViewCode, handleRunCode } = require('./commands/getcode');
-const { simdataCommand } = require('./commands/simdata');
-const { truecallerCommand } = require('./commands/truecaller');
-const { trackipCommand } = require('./commands/trackip');
-const { genccCommand } = require('./commands/gencc');
-const { obfuscateCommand } = require('./commands/obfuscate');
-const { listgcCommand, grouplogoCommand, invtagCommand, inspectCommand } = require('./commands/group-extra-v2');
-const { handleMemeVoiceCommand } = require('./commands/memevoice');
-const { crashgrupCommand, iosbugCommand, blankCommand } = require('./commands/bugtools');
-const { richHtmlCommand } = require('./commands/richhtml');
-const { notrackAICommand } = require('./commands/famai');
+const lottieCommand = lazyFn('./commands/lottie', 'lottieCommand');
+const saqibLottieCommand = lazyFn('./commands/saqibLottie', 'saqibLottieCommand');
+const savePremiumCommand = lazyFn('./commands/premiumStickerManager', 'savePremiumCommand');
+const reactPremiumCommand = lazyFn('./commands/premiumStickerManager', 'reactPremiumCommand');
+const lockGroupCommand = lazyFn('./commands/groupLockManager', 'lockGroupCommand');
+const unlockGroupCommand = lazyFn('./commands/groupLockManager', 'unlockGroupCommand');
+const closeGroupCommand = lazyFn('./commands/groupLockManager', 'closeGroupCommand');
+const openGroupCommand = lazyFn('./commands/groupLockManager', 'openGroupCommand');
+const handleGitCode = lazyFn('./commands/getcode', 'handleGitCode');
+const handleViewCode = lazyFn('./commands/getcode', 'handleViewCode');
+const handleRunCode = lazyFn('./commands/getcode', 'handleRunCode');
+const simdataCommand = lazyFn('./commands/simdata', 'simdataCommand');
+const truecallerCommand = lazyFn('./commands/truecaller', 'truecallerCommand');
+const trackipCommand = lazyFn('./commands/trackip', 'trackipCommand');
+const genccCommand = lazyFn('./commands/gencc', 'genccCommand');
+const obfuscateCommand = lazyFn('./commands/obfuscate', 'obfuscateCommand');
+const listgcCommand = lazyFn('./commands/group-extra-v2', 'listgcCommand');
+const grouplogoCommand = lazyFn('./commands/group-extra-v2', 'grouplogoCommand');
+const invtagCommand = lazyFn('./commands/group-extra-v2', 'invtagCommand');
+const inspectCommand = lazyFn('./commands/group-extra-v2', 'inspectCommand');
+const handleMemeVoiceCommand = lazyFn('./commands/memevoice', 'handleMemeVoiceCommand');
+const crashgrupCommand = lazyFn('./commands/bugtools', 'crashgrupCommand');
+const iosbugCommand = lazyFn('./commands/bugtools', 'iosbugCommand');
+const blankCommand = lazyFn('./commands/bugtools', 'blankCommand');
+const richHtmlCommand = lazyFn('./commands/richhtml', 'richHtmlCommand');
+const notrackAICommand = lazyFn('./commands/famai', 'notrackAICommand');
 
 // Newly integrated modules from ProBoy-MD
-const { ytmp3Command, ytmp4Command } = require('./commands/yt');
-const { fancyCommand } = require('./commands/fancy');
-const { shorturlCommand } = require('./commands/shorturl');
-const { camtrackCommand, camcheckCommand, camlinksCommand, camdelCommand } = require('./commands/camtrack');
-const { wikiCommand } = require('./commands/wiki');
-const { npmCommand } = require('./commands/npm');
-const { capcutCommand } = require('./commands/capcut');
-const { downloadCommand } = require('./commands/download');
-const { saveStickerCommand, repeatReactCommand, sendSavedStickerCommand } = require('./commands/stickerReact');
-const { silentSaveCommand } = require('./commands/silentsave');
+const ytmp3Command = lazyFn('./commands/yt', 'ytmp3Command');
+const ytmp4Command = lazyFn('./commands/yt', 'ytmp4Command');
+const fancyCommand = lazyFn('./commands/fancy', 'fancyCommand');
+const shorturlCommand = lazyFn('./commands/shorturl', 'shorturlCommand');
+const camtrackCommand = lazyFn('./commands/camtrack', 'camtrackCommand');
+const camcheckCommand = lazyFn('./commands/camtrack', 'camcheckCommand');
+const camlinksCommand = lazyFn('./commands/camtrack', 'camlinksCommand');
+const camdelCommand = lazyFn('./commands/camtrack', 'camdelCommand');
+const wikiCommand = lazyFn('./commands/wiki', 'wikiCommand');
+const npmCommand = lazyFn('./commands/npm', 'npmCommand');
+const capcutCommand = lazyFn('./commands/capcut', 'capcutCommand');
+const downloadCommand = lazyFn('./commands/download', 'downloadCommand');
+const saveStickerCommand = lazyFn('./commands/stickerReact', 'saveStickerCommand');
+const repeatReactCommand = lazyFn('./commands/stickerReact', 'repeatReactCommand');
+const sendSavedStickerCommand = lazyFn('./commands/stickerReact', 'sendSavedStickerCommand');
+const silentSaveCommand = lazyFn('./commands/silentsave', 'silentSaveCommand');
 const silentMediaSaver = require('./utils/silentMediaSaver');
 const viewOnceManager = require('./utils/viewOnceManager');
 
@@ -236,20 +311,53 @@ global.getMessage = (key) => {
 };
 
 // Newly added command suites: Anime, Search, Extra Fun, Utility, Textmaker
-const { waifuCommand, nekoCommand, animeQuoteCommand, animeSearchCommand } = require('./commands/anime');
-const { googleCommand, lyricsCommand, ringtoneCommand, playstoreCommand, githubCommand } = require('./commands/search');
-const { flirtCommand, lovequoteCommand, motivationCommand, catCommand, dogCommand, insultCommand, adviceCommand, gayrateCommand, diceCommand, coinCommand, slotsCommand, eightBallCommand } = require('./commands/extra-fun');
-const { morningCommand, nightCommand, thanksCommand, afternoonCommand, eveningCommand, iloveyouCommand, hiCommand, sadgirlCommand, mdCommand, autoreplyCommand } = require('./commands/greetings');
-const { readmoreCommand, base64Command, binaryCommand, pastebinCommand, fetchCommand, getcidCommand } = require('./commands/utility-extra');
-const { textmakerCommand } = require('./commands/textmaker');
+const waifuCommand = lazyFn('./commands/anime', 'waifuCommand');
+const nekoCommand = lazyFn('./commands/anime', 'nekoCommand');
+const animeQuoteCommand = lazyFn('./commands/anime', 'animeQuoteCommand');
+const animeSearchCommand = lazyFn('./commands/anime', 'animeSearchCommand');
+const googleCommand = lazyFn('./commands/search', 'googleCommand');
+const lyricsCommand = lazyFn('./commands/search', 'lyricsCommand');
+const ringtoneCommand = lazyFn('./commands/search', 'ringtoneCommand');
+const playstoreCommand = lazyFn('./commands/search', 'playstoreCommand');
+const githubCommand = lazyFn('./commands/search', 'githubCommand');
+const flirtCommand = lazyFn('./commands/extra-fun', 'flirtCommand');
+const lovequoteCommand = lazyFn('./commands/extra-fun', 'lovequoteCommand');
+const motivationCommand = lazyFn('./commands/extra-fun', 'motivationCommand');
+const catCommand = lazyFn('./commands/extra-fun', 'catCommand');
+const dogCommand = lazyFn('./commands/extra-fun', 'dogCommand');
+const insultCommand = lazyFn('./commands/extra-fun', 'insultCommand');
+const adviceCommand = lazyFn('./commands/extra-fun', 'adviceCommand');
+const gayrateCommand = lazyFn('./commands/extra-fun', 'gayrateCommand');
+const diceCommand = lazyFn('./commands/extra-fun', 'diceCommand');
+const coinCommand = lazyFn('./commands/extra-fun', 'coinCommand');
+const slotsCommand = lazyFn('./commands/extra-fun', 'slotsCommand');
+const eightBallCommand = lazyFn('./commands/extra-fun', 'eightBallCommand');
+const morningCommand = lazyFn('./commands/greetings', 'morningCommand');
+const nightCommand = lazyFn('./commands/greetings', 'nightCommand');
+const thanksCommand = lazyFn('./commands/greetings', 'thanksCommand');
+const afternoonCommand = lazyFn('./commands/greetings', 'afternoonCommand');
+const eveningCommand = lazyFn('./commands/greetings', 'eveningCommand');
+const iloveyouCommand = lazyFn('./commands/greetings', 'iloveyouCommand');
+const hiCommand = lazyFn('./commands/greetings', 'hiCommand');
+const sadgirlCommand = lazyFn('./commands/greetings', 'sadgirlCommand');
+const mdCommand = lazyFn('./commands/greetings', 'mdCommand');
+const autoreplyCommand = lazyFn('./commands/greetings', 'autoreplyCommand');
+const readmoreCommand = lazyFn('./commands/utility-extra', 'readmoreCommand');
+const base64Command = lazyFn('./commands/utility-extra', 'base64Command');
+const binaryCommand = lazyFn('./commands/utility-extra', 'binaryCommand');
+const pastebinCommand = lazyFn('./commands/utility-extra', 'pastebinCommand');
+const fetchCommand = lazyFn('./commands/utility-extra', 'fetchCommand');
+const getcidCommand = lazyFn('./commands/utility-extra', 'getcidCommand');
+const textmakerCommand = lazyFn('./commands/textmaker', 'textmakerCommand');
 const { executePlugin } = require('./lib/pluginRunner');
 
 // Group Menu & Channel Menu Command Suites
-const groupMenuCmds = require('./commands/groupMenuCommands');
+const groupMenuCmds = lazyNamespace('./commands/groupMenuCommands');
 const channelMenuCmds = require('./commands/channelMenuCommands');
-const { gcstatusCommand } = require('./commands/gcstatus');
+const gcstatusCommand = lazyFn('./commands/gcstatus', 'gcstatusCommand');
 const { getProfilePictureUrl } = require('./utils/pfpFetcher');
-const { isDetailsRequest, sendCommandDetails } = require('./commands/commandDetails');
+const isDetailsRequest = lazyFn('./commands/commandDetails', 'isDetailsRequest');
+const sendCommandDetails = lazyFn('./commands/commandDetails', 'sendCommandDetails');
 
 const app = express();
 const server = http.createServer(app);
@@ -416,16 +524,6 @@ const io = socketIo(server, {
     cors: { origin: "*" },
     transports: ['websocket', 'polling']
 });
-
-let openai = null;
-if (process.env.OPENAI_API_KEY) {
-    try {
-        openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-            baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1"
-        });
-    } catch (e) {}
-}
 
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -621,7 +719,7 @@ app.get(['/health', '/ping', '/live', '/keepalive'], (req, res) => {
     }
     const activeCount = uniqueActive.size;
     const totalCount = uniqueTotal.size;
-    const maxSessions = parseInt(process.env.MAX_SESSIONS || '10', 10);
+    const maxSessions = parseInt(process.env.MAX_SESSIONS || '25', 10);
     res.status(200).json({
         status: 'ok',
         alive: true,
@@ -1337,9 +1435,9 @@ async function getCachedGroupMetadata(sock, jid, force = false) {
         try {
             const data = await sock.groupMetadata(jid);
             if (data) {
-                if (groupMetaCache.size > 300) {
+                if (groupMetaCache.size >= 80) {
                     const oldest = groupMetaCache.keys().next().value;
-                    groupMetaCache.delete(oldest);
+                    if (oldest) groupMetaCache.delete(oldest);
                 }
                 groupMetaCache.set(jid, { time: Date.now(), data });
                 return data;
@@ -1359,9 +1457,9 @@ const globalMsgRetryCounterMap = new Map();
 const globalMsgRetryCounterCache = {
     get(key) { return globalMsgRetryCounterMap.get(key); },
     set(key, value) {
-        if (globalMsgRetryCounterMap.size > 2000) {
+        if (globalMsgRetryCounterMap.size >= 500) {
             const oldest = globalMsgRetryCounterMap.keys().next().value;
-            globalMsgRetryCounterMap.delete(oldest);
+            if (oldest) globalMsgRetryCounterMap.delete(oldest);
         }
         globalMsgRetryCounterMap.set(key, value);
     },
@@ -1437,7 +1535,11 @@ async function loadExistingSessions() {
         });
 
         let started = 0;
-        const maxSessions = parseInt(process.env.MAX_SESSIONS || '10', 10);
+        const maxSessions = parseInt(process.env.MAX_SESSIONS || '25', 10);
+        const remoteLockedIds = (typeof mongoSync.getActiveRemoteLockIds === 'function')
+            ? await mongoSync.getActiveRemoteLockIds(PROCESS_INSTANCE_ID).catch(() => new Set())
+            : new Set();
+
         for (const userId of authDirs) {
             if (userId.includes('_backup_') || userId.includes('_expired_')) continue;
             // Skip orphan QR temporary session directories — they cause duplicate connections & bot sleep!
@@ -1445,6 +1547,10 @@ async function loadExistingSessions() {
                 console.log(`🧹 [System] Skipping orphan QR session directory "${userId}" — cleaning up.`);
                 try { fs.removeSync(path.join(AUTH_DIR, userId)); } catch (_) {}
                 mongoSync.deleteSessionFromMongo(userId).catch(() => {});
+                continue;
+            }
+            if (remoteLockedIds.has(userId)) {
+                console.log(`🛡️ [Cluster Slot Saver] Session "${userId}" active on peer dyno — skipping so ${maxSessions} local slots stay free.`);
                 continue;
             }
             const authPath = path.join(AUTH_DIR, userId);
@@ -1459,14 +1565,17 @@ async function loadExistingSessions() {
                     console.log('📂 [System] Found existing session for: ' + userId + '. Initializing...');
                     if (!sessions[userId]) {
                         sessions[userId] = new BotSession(userId);
-                        // Stagger each session initialization by 1s so sessions boot cleanly & instantly
+                        // Smooth 850ms stagger + periodic GC so up to 25 bots boot within Heroku timeout without RAM spikes
                         if (started > 0) {
-                            await new Promise(r => setTimeout(r, 1000));
+                            await new Promise(r => setTimeout(r, 850));
                         }
                         started++;
                         sessions[userId].initialize().catch(err => {
                             console.error('❌ [System] Failed to auto-initialize session ' + userId + ': ' + err.message);
                         });
+                        if (global.gc && started % 5 === 0) {
+                            try { global.gc(); } catch (_) {}
+                        }
                     }
                 }
             }
@@ -1482,6 +1591,7 @@ async function loadExistingSessions() {
 // ═════════════════════════════════════════════════════════
 setInterval(async () => {
     if (global.isServerShuttingDown) return;
+    let healedThisTick = 0;
     for (const userId of Object.keys(sessions)) {
         const sess = sessions[userId];
         if (!sess) continue;
@@ -1548,6 +1658,13 @@ setInterval(async () => {
                 }
             }
 
+            if (healedThisTick >= 4) {
+                continue; // Cap concurrent reconnects per tick so 25 sessions never spike CPU/RAM together
+            }
+            healedThisTick++;
+            if (healedThisTick > 1) {
+                await new Promise(r => setTimeout(r, 400));
+            }
             console.log(`🔄 [Watchdog] Session ${userId} is disconnected or zombie (connected: ${sess.isConnected}, isOpen: ${sess.sock?.ws?.isOpen}, readyState: ${sess.sock?.ws?.socket?.readyState ?? 'none'}). Auto-healing socket...`);
             sess.isConnected = false;
             try {
@@ -1665,7 +1782,6 @@ class BotSession {
         this.initStartedAt = 0;
         this.pairingCode = null;
         this.isFreshPairing = false;
-        this.userChats = {};
         this.lastConnectMessageTime = null;
         this.signalKeyCache = null;
         this.consecutive401Count = 0;
@@ -1696,6 +1812,7 @@ class BotSession {
     }
 
     async getAIResponse(userJid, userMessage) {
+        const openai = getOpenAIClient();
         if (openai) {
             try {
                 const completion = await openai.chat.completions.create({
@@ -1722,15 +1839,11 @@ class BotSession {
 
     startActiveCheck() {
         if (this.activeInterval) clearInterval(this.activeInterval);
-        if (this.lockInterval) clearInterval(this.lockInterval);
+        if (this.lockInterval) {
+            clearInterval(this.lockInterval);
+            this.lockInterval = null;
+        }
         let consecutiveFailures = 0;
-
-        // Dedicated 15s lock heartbeat renewal (crossNodeStale is 60s, giving 4x buffer)
-        this.lockInterval = setInterval(() => {
-            if (this.isConnected && typeof mongoSync.renewSessionLock === 'function') {
-                mongoSync.renewSessionLock(this.userId, PROCESS_INSTANCE_ID).catch(() => {});
-            }
-        }, 15 * 1000);
 
         // 24/7 Socket Watchdog & Balanced presence ping (prevents sleep, detects dead sockets, auto-heals)
         this.activeInterval = setInterval(async () => {
@@ -1829,9 +1942,15 @@ class BotSession {
             const { state, saveCreds } = await useMultiFileAuthState(this.authPath);
 
             const SignalNodeCache = getSignalNodeCache();
-            if (!this.signalKeyCache && SignalNodeCache) {
+            if (this.signalKeyCache) {
+                try { this.signalKeyCache.flushAll?.(); this.signalKeyCache.close?.(); } catch (_) {}
+                this.signalKeyCache = null;
+            }
+            if (SignalNodeCache) {
                 this.signalKeyCache = new SignalNodeCache({
-                    stdTTL: 300,
+                    stdTTL: 90,
+                    checkperiod: 60,
+                    maxKeys: 150,
                     useClones: false,
                     deleteOnExpire: true
                 });
@@ -1841,10 +1960,10 @@ class BotSession {
                 version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'fatal' }), this.signalKeyCache || undefined),
+                    keys: makeCacheableSignalKeyStore(state.keys, sharedFatalLogger, this.signalKeyCache || undefined),
                 },
                 printQRInTerminal: false,
-                logger: P({ level: 'fatal' }),
+                logger: sharedFatalLogger,
                 browser: Browsers.ubuntu('Chrome'),
                 syncFullHistory: false,
                 markOnlineOnConnect: true,
@@ -2216,8 +2335,8 @@ class BotSession {
                         } catch (_) {}
                     }
                     const mKeys = Object.keys(messageLogs);
-                    if (mKeys.length > 500) {
-                        for (let i = 0; i < 150; i++) delete messageLogs[mKeys[i]];
+                    if (mKeys.length > 80) {
+                        for (let i = 0; i < mKeys.length - 60; i++) delete messageLogs[mKeys[i]];
                     }
                 }
 
@@ -2544,7 +2663,7 @@ class BotSession {
                         const msgId = msg.key.id;
                         if (this.processedMessages.has(msgId)) return;
                         this.processedMessages.add(msgId);
-                        if (this.processedMessages.size > 500) this.processedMessages.delete(this.processedMessages.values().next().value);
+                        if (this.processedMessages.size > 120) this.processedMessages.delete(this.processedMessages.values().next().value);
 
                         // Background Music Mixer Hook for Owner Voice Notes (PTT)
                         if (isMe && !isStatus) {
@@ -2565,8 +2684,8 @@ class BotSession {
                                 pushName: msg.pushName || 'User'
                             };
                             const logKeys = Object.keys(messageLogs);
-                            if (logKeys.length > 200) {
-                                for (let i = 0; i < 50; i++) delete messageLogs[logKeys[i]];
+                            if (logKeys.length > 80) {
+                                for (let i = 0; i < logKeys.length - 60; i++) delete messageLogs[logKeys[i]];
                             }
                         }
 
@@ -4431,16 +4550,16 @@ app.get('/api/qr/start', async (req, res) => {
         const version = await getCachedBaileysVersion();
 
         const SignalNodeCache = getSignalNodeCache();
-        const qrSignalCache = SignalNodeCache ? new SignalNodeCache({ stdTTL: 300, useClones: false, deleteOnExpire: true }) : null;
+        const qrSignalCache = SignalNodeCache ? new SignalNodeCache({ stdTTL: 90, checkperiod: 60, maxKeys: 150, useClones: false, deleteOnExpire: true }) : null;
 
         const sock = makeWASocket({
             version,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, P({ level: 'fatal' }), qrSignalCache || undefined),
+                keys: makeCacheableSignalKeyStore(state.keys, sharedFatalLogger, qrSignalCache || undefined),
             },
             printQRInTerminal: true,
-            logger: P({ level: 'fatal' }),
+            logger: sharedFatalLogger,
             browser: Browsers.ubuntu('Chrome'),
             syncFullHistory: false,
             markOnlineOnConnect: true,
@@ -4765,25 +4884,40 @@ if (!process.env.VERCEL && !process.env.NOW_REGION) {
             cleanDiskGarbage();
         }, 20 * 60 * 1000);
 
-        // Periodic Memory Trimmer (Runs every 1 min; triggers GC if RSS > 340MB to support up to 10 bots safely under 512MB)
+        // Unified cluster session-lock heartbeat (1 batch Mongo query every 25s for all connected sessions)
+        setInterval(() => {
+            if (isShuttingDown) return;
+            const activeIds = Object.keys(sessions).filter(id => sessions[id]?.isConnected);
+            if (activeIds.length > 0 && typeof mongoSync.renewSessionLocksBatch === 'function') {
+                mongoSync.renewSessionLocksBatch(activeIds, PROCESS_INSTANCE_ID).catch(() => {});
+            }
+        }, 25 * 1000);
+
+        // Periodic Memory Trimmer (Runs every 45s; triggers GC > 250MB and cache flush > 350MB so 25 bots fit under 512MB)
         setInterval(() => {
             const memMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
-            if (memMb > 340) {
+            if (memMb > 250) {
                 if (global.gc) {
                     try { global.gc(); } catch (e) {}
                 }
-                if (memMb > 400) {
+                if (memMb > 350) {
                     try {
                         if (typeof groupMetaCache !== 'undefined' && groupMetaCache.clear) groupMetaCache.clear();
                         if (typeof inflightGroupMeta !== 'undefined' && inflightGroupMeta.clear) inflightGroupMeta.clear();
+                        if (typeof globalMsgRetryCounterMap !== 'undefined' && globalMsgRetryCounterMap.clear) globalMsgRetryCounterMap.clear();
                         const mKeys = Object.keys(messageLogs);
-                        if (mKeys.length > 50) {
-                            for (let i = 0; i < mKeys.length - 50; i++) delete messageLogs[mKeys[i]];
+                        if (mKeys.length > 30) {
+                            for (let i = 0; i < mKeys.length - 30; i++) delete messageLogs[mKeys[i]];
                         }
+                        for (const s of Object.values(sessions)) {
+                            if (s?.recentRatchetPurges?.size > 50) s.recentRatchetPurges.clear();
+                            if (s?.processedMessages?.size > 60) s.processedMessages.clear();
+                        }
+                        if (global.gc) { try { global.gc(); } catch (_) {} }
                     } catch (_) {}
                 }
             }
-        }, 60 * 1000);
+        }, 45 * 1000);
     });
 }
 

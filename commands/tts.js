@@ -1,16 +1,14 @@
 // commands/tts.js - WhatsApp Voice Note (PTT) Text-To-Speech Generator
 'use strict';
 
-const googleTTS = require('google-tts-api');
+let _googleTTS = null;
+const getGoogleTTS = () => (_googleTTS || (_googleTTS = require('google-tts-api')));
 const axios = require('axios');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+const { getFfmpeg } = require('../lib/lazyMedia');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-ffmpeg.setFfmpegPath(ffmpegStatic);
 
 const SUPPORTED_LANGS = {
     'ur': 'Urdu',
@@ -91,7 +89,7 @@ async function ttsCommand(sock, from, msg, args = []) {
         await sock.sendMessage(from, { react: { text: '🎙️', key: msg.key } }).catch(() => {});
 
         // Fetch Google TTS audio stream
-        const ttsUrl = googleTTS.getAudioUrl(text, {
+        const ttsUrl = getGoogleTTS().getAudioUrl(text, {
             lang: lang,
             slow: false,
             host: 'https://translate.google.com'
@@ -121,6 +119,7 @@ async function ttsCommand(sock, from, msg, args = []) {
         await fs.writeFile(inPath, response.data);
 
         // Encode to official WhatsApp voice note Opus stream
+        const ffmpeg = getFfmpeg();
         await new Promise((resolve, reject) => {
             ffmpeg(inPath)
                 .toFormat('ogg')

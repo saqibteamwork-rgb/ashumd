@@ -16,11 +16,14 @@
  */
 
 const axios = require('axios');
-const cheerio = require('cheerio');
-let ttdl;
-try {
-    ttdl = require('ruhend-scraper').ttdl;
-} catch {}
+const { getCheerio } = require('../lib/lazyMedia');
+let _ttdl;
+function getTtdl() {
+    if (_ttdl === undefined) {
+        try { _ttdl = require('ruhend-scraper').ttdl || null; } catch { _ttdl = null; }
+    }
+    return _ttdl;
+}
 const settings = require('../settings');
 
 // In-memory cache for recent TikTok lookups (10-minute TTL, max 100 items)
@@ -218,7 +221,7 @@ async function fetchSSSTik(targetUrl, resolvedUrl) {
                 timeout: 8000
             });
 
-            const parsed = cheerio.load(postRes.data);
+            const parsed = getCheerio().load(postRes.data);
             const videoUrl = parsed('a.without_watermark').attr('href') || 
                              parsed('a.download_link.without_watermark').attr('href') || 
                              parsed('a.without_watermark_direct').attr('href');
@@ -255,12 +258,13 @@ async function fetchSSSTik(targetUrl, resolvedUrl) {
 // SERVER 3: Ruhend Engine (Independent Scraper Pipeline)
 // ═════════════════════════════════════════════════════════
 async function fetchRuhend(targetUrl, resolvedUrl) {
-    if (typeof ttdl !== 'function') return null;
+    const ttdlFn = getTtdl();
+    if (typeof ttdlFn !== 'function') return null;
     const urlsToTry = [resolvedUrl || targetUrl, targetUrl];
 
     for (const u of urlsToTry) {
         try {
-            const data = await ttdl(u);
+            const data = await ttdlFn(u);
             if (data && (data.video || data.video_hd || data.video_wm)) {
                 return {
                     videoUrl: data.video || data.video_hd || data.video_wm,

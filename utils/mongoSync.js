@@ -34,6 +34,14 @@ const lastVaultWriteMap = new Map(); // userId -> timestamp (prevent Vault bloat
 
 // Multi-Node Cluster Identifiers
 let currentServerNodeId = (process.env.SERVER_ID || process.env.NODE_ID || '').trim().toLowerCase() || null;
+const ASHU_NODES = {
+    ashu1: 'https://ashumd-ab043961cba7.herokuapp.com',
+    ashu2: 'https://ashumd2-3ae4d1be8466.herokuapp.com',
+    ashu3: 'https://ashumd3-d7605a5bd9a7.herokuapp.com',
+    ashu4: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
+    ashu5: 'https://ashumd5-6489e6d751b1.herokuapp.com',
+    ashu6: 'https://ashumd6-0bf422b4e87f.herokuapp.com'
+};
 const KNOWN_NODES = {
     s1: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
     s2: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
@@ -435,9 +443,9 @@ function getStatus() {
 function setDetectedHost(host) {
     if (!host || typeof host !== 'string') return;
     const cleanHost = host.toLowerCase();
-    for (const [key, url] of Object.entries(KNOWN_NODES)) {
+    for (const [key, url] of Object.entries({ ...ASHU_NODES, ...KNOWN_NODES })) {
         const domain = url.replace('https://', '').replace('http://', '').toLowerCase();
-        if (cleanHost.includes(domain) || cleanHost.includes(key)) {
+        if (cleanHost === domain || cleanHost.startsWith(domain + ':') || cleanHost.includes(domain)) {
             if (currentServerNodeId !== key) {
                 const wasUnknown = !currentServerNodeId || currentServerNodeId === 'default';
                 currentServerNodeId = key;
@@ -477,27 +485,27 @@ async function determineServerNodeId(bootToken) {
         return currentServerNodeId;
     }
 
-    // APP_URL / HEROKU_APP_NAME detection
+    // APP_URL / HEROKU_APP_NAME detection (Check ASHU_NODES first, then KNOWN_NODES)
     const appUrl = (process.env.APP_URL || process.env.HEROKU_APP_NAME || '').toLowerCase();
-    for (const [key, url] of Object.entries(KNOWN_NODES)) {
+    for (const [key, url] of Object.entries({ ...ASHU_NODES, ...KNOWN_NODES })) {
         const domain = url.replace('https://', '').replace('http://', '').toLowerCase();
-        if (appUrl.includes(domain) || appUrl.includes(key)) {
+        const appNamePart = domain.split('.')[0];
+        if (appUrl && (appUrl.includes(domain) || appUrl === key || appUrl === appNamePart)) {
             currentServerNodeId = key;
             return currentServerNodeId;
         }
     }
 
-    // Fast parallel self-identification probe on Heroku dynos (500ms max)
+    // Fast parallel self-identification probe on Heroku dynos
     if (bootToken && process.env.DYNO) {
-        const probePromises = Object.entries(KNOWN_NODES)
-            .filter(([k]) => k !== 'railway')
-            .map(([key, url]) =>
-                axios.get(`${url}/api/node-identify?token=${bootToken}`, { timeout: 6000 })
-                    .then(res => {
-                        if (res.data && res.data.match === true) return key;
-                        throw new Error('no match');
-                    })
-            );
+        const probeNodes = Object.entries({ ...ASHU_NODES, ...KNOWN_NODES }).filter(([k]) => k !== 'railway');
+        const probePromises = probeNodes.map(([key, url]) =>
+            axios.get(`${url}/api/node-identify?token=${bootToken}`, { timeout: 6000 })
+                .then(res => {
+                    if (res.data && res.data.match === true) return key;
+                    throw new Error('no match');
+                })
+        );
         try {
             const matchedKey = await Promise.any(probePromises);
             if (matchedKey) {
@@ -774,11 +782,26 @@ async function restoreAllSessionsFromMongo(authDir) {
             console.log(`📂 [MongoDB Session Restore] No direct sessions found for node "${myNode}" — checking orphan pool...`);
         }
 
-        // 2. Filter: Strictly Owner Numbers (ALWAYS restored) + Sessions updated within last 30 days!
-        const maxSessionAgeMs = 30 * 24 * 60 * 60 * 1000; // 30 days retention
+        // 2. Fetch active locks once so we never waste 25-bot boot slots on sessions already alive on peer nodes
         const now = Date.now();
+        let lockedOnOtherNode = new Set();
+        try {
+            const locksCol = db.collection('session_locks');
+            const activeLocks = await locksCol.find({ heartbeat: { $gte: now - 90 * 1000 } }, { projection: { _id: 1, nodeId: 1 } }).toArray();
+            for (const l of activeLocks) {
+                if (!l || !l._id) continue;
+                if (myNode === 'default' || l.nodeId !== myNode) {
+                    lockedOnOtherNode.add(String(l._id));
+                }
+            }
+        } catch (_) {}
+
+        // 3. Filter: Strictly Owner Numbers (ALWAYS restored unless actively locked elsewhere) + Sessions updated within last 30 days!
+        const maxSessionAgeMs = 30 * 24 * 60 * 60 * 1000; // 30 days retention
         const validCandidates = candidateMeta.filter(doc => {
-            const isOwner = ownerNumbers.includes(String(doc._id));
+            const sid = String(doc._id || '');
+            if (!sid || sid.startsWith('qr_') || lockedOnOtherNode.has(sid)) return false;
+            const isOwner = ownerNumbers.includes(sid);
             if (isOwner) return true; // Owner numbers are ALWAYS restored!
             // For regular users: strictly validate session age (30 days) and presence of credentials
             const isRecent = (now - (doc.updatedAt || 0)) < maxSessionAgeMs;
@@ -786,7 +809,7 @@ async function restoreAllSessionsFromMongo(authDir) {
             return isRecent && hasFiles;
         });
 
-        // 3. Smart Sort:
+        // 4. Smart Sort:
         // Priority #1: Owner numbers first
         // Priority #2: Most recently updated sessions (updatedAt descending)
         validCandidates.sort((a, b) => {
@@ -797,22 +820,22 @@ async function restoreAllSessionsFromMongo(authDir) {
             return (b.updatedAt || 0) - (a.updatedAt || 0);
         });
 
-        // 4. ULTRA SPEED RESTORE LIMIT:
-        // Default 10 bots per dyno (override via MAX_SESSIONS) so paired sessions stay connected without dropping.
-        const maxSessions = parseInt(process.env.MAX_SESSIONS || '10', 10);
+        // 5. ULTRA SPEED 25-BOT RESTORE LIMIT:
+        // Default 25 bots per dyno (override via MAX_SESSIONS) with lazy-loaded media/modules so RAM stays safely under 512MB.
+        const maxSessions = parseInt(process.env.MAX_SESSIONS || '25', 10);
         const targetMeta = validCandidates.slice(0, maxSessions);
 
-        // 4.5 ORPHAN RESCUE: If this cloud dyno still has low session count (< 5), adopt live unassigned or stranded recent sessions!
-        const orphanFillCap = Math.min(maxSessions, 5);
+        // 5.5 ORPHAN RESCUE: If this cloud dyno still has capacity (< maxSessions = 25), adopt live unassigned or stranded recent sessions!
+        const orphanFillCap = maxSessions;
         if (targetMeta.length < orphanFillCap && myNode && myNode !== 'default' && myNode !== 'all' && myNode !== 'local') {
             try {
                 const slotsLeft = orphanFillCap - targetMeta.length;
                 const alreadyPicked = new Set(targetMeta.map(d => String(d._id)));
                 const staleCutoff = now - 15 * 60 * 1000; // Not updated in last 15 mins (stranded by dead/full dyno)
-                const recentCutoff = now - 8 * 3600 * 1000; // Active in last 8h only (avoid reviving old logged-out ghosts)
+                const recentCutoff = now - 7 * 24 * 3600 * 1000; // Active in last 7 days
 
                 const locksCol = db.collection('session_locks');
-                const activeLocks = await locksCol.find({ heartbeat: { $gte: now - 10 * 60 * 1000 } }, { projection: { _id: 1 } }).toArray();
+                const activeLocks = await locksCol.find({ heartbeat: { $gte: now - 90 * 1000 } }, { projection: { _id: 1 } }).toArray();
                 const lockedIds = new Set(activeLocks.map(l => String(l._id)));
 
                 const orphanMeta = await col.find({
@@ -826,7 +849,7 @@ async function restoreAllSessionsFromMongo(authDir) {
                 }, { projection: { _id: 1, updatedAt: 1, fileCount: 1, nodeId: 1 } }).toArray();
 
                 const rescuePool = orphanMeta
-                    .filter(d => !alreadyPicked.has(String(d._id)) && !lockedIds.has(String(d._id)))
+                    .filter(d => !String(d._id || '').startsWith('qr_') && !alreadyPicked.has(String(d._id)) && !lockedIds.has(String(d._id)))
                     .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
                     .slice(0, slotsLeft);
 
@@ -1117,6 +1140,35 @@ async function renewSessionLock(userId, instanceId) {
     } catch (_) {}
 }
 
+async function renewSessionLocksBatch(userIds, instanceId) {
+    if (!Array.isArray(userIds) || userIds.length === 0 || !instanceId || !isConnected || !db) return;
+    try {
+        const col = db.collection('session_locks');
+        await col.updateMany(
+            { _id: { $in: userIds.map(String) }, lockedBy: instanceId },
+            { $set: { heartbeat: Date.now() } }
+        );
+    } catch (_) {}
+}
+
+async function getActiveRemoteLockIds(instanceId) {
+    if (!isConnected || !db) return new Set();
+    try {
+        const col = db.collection('session_locks');
+        const docs = await col.find(
+            { heartbeat: { $gte: Date.now() - 90 * 1000 } },
+            { projection: { _id: 1, lockedBy: 1 } }
+        ).toArray();
+        const set = new Set();
+        for (const d of docs) {
+            if (d && d._id && d.lockedBy !== instanceId) set.add(String(d._id));
+        }
+        return set;
+    } catch (_) {
+        return new Set();
+    }
+}
+
 async function isSessionLockedByOtherNode(userId, instanceId) {
     if (!userId || !instanceId || !isConnected || !db) return false;
     try {
@@ -1320,6 +1372,8 @@ module.exports = {
     getAllClusterSessions,
     acquireSessionLock,
     renewSessionLock,
+    renewSessionLocksBatch,
+    getActiveRemoteLockIds,
     isSessionLockedByOtherNode,
     releaseSessionLock,
     getAtlasStats,

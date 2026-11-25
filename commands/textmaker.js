@@ -26,7 +26,7 @@
  * ============================================================================
  */
 
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 const settings = require('../settings');
 
 const THEMES = {
@@ -240,7 +240,7 @@ async function generateTextBanner(text, themeName) {
 </svg>
 `;
 
-    return await sharp(Buffer.from(svg))
+    return await getSharp()(Buffer.from(svg))
         .png({ quality: 95 })
         .toBuffer();
 }

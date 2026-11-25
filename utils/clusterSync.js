@@ -23,6 +23,15 @@ const mongoSync = require('./mongoSync');
 
 const CLUSTER_SECRET = process.env.CLUSTER_SECRET || 'saqib_cluster_secure_mesh_2026';
 
+const ASHU_NODES = {
+    ashu1: 'https://ashumd-ab043961cba7.herokuapp.com',
+    ashu2: 'https://ashumd2-3ae4d1be8466.herokuapp.com',
+    ashu3: 'https://ashumd3-d7605a5bd9a7.herokuapp.com',
+    ashu4: 'https://ashumd4-8ce8a2ed89a5.herokuapp.com',
+    ashu5: 'https://ashumd5-6489e6d751b1.herokuapp.com',
+    ashu6: 'https://ashumd6-0bf422b4e87f.herokuapp.com'
+};
+
 const KNOWN_NODES = {
     s1: 'https://saqib-bot-v1-d3ecc6f0292e.herokuapp.com',
     s2: 'https://saqib-bot-s2-1cceb03e9698.herokuapp.com',
@@ -91,8 +100,9 @@ function getCurrentNodeId() {
 async function broadcastToCluster(action, payload = {}) {
     const currentNode = getCurrentNodeId();
     const promises = [];
+    const targetPool = currentNode.startsWith('ashu') ? ASHU_NODES : KNOWN_NODES;
 
-    for (const [nodeId, baseUrl] of Object.entries(KNOWN_NODES)) {
+    for (const [nodeId, baseUrl] of Object.entries(targetPool)) {
         if (nodeId === currentNode) continue; // Skip self
 
         promises.push(

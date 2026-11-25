@@ -1,21 +1,16 @@
 // commands/media-local.js - QR Generator, Calligraphy, Compress (all local, no API key)
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const sharp = require('sharp');
+const { getSharp, getFfmpeg, getQRCode } = require('../lib/lazyMedia');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
 const crypto = require('crypto');
-let QRCode;
-try { QRCode = require('qrcode'); } catch (e) { QRCode = null; }
-
-ffmpeg.setFfmpegPath(ffmpegStatic);
 
 // ---------- QR CODE ----------
 async function qrCommand(sock, from, msg, args) {
     const text = args.join(' ');
     if (!text) return await sock.sendMessage(from, { text: "❌ Usage: .qr <text or link>" }, { quoted: msg });
+    const QRCode = getQRCode();
     if (!QRCode) return await sock.sendMessage(from, { text: "❌ QR module not installed. Run: npm install qrcode" }, { quoted: msg });
     try {
         const buffer = await QRCode.toBuffer(text, { width: 512, margin: 2 });
@@ -49,7 +44,7 @@ async function calligraphyCommand(sock, from, msg, args) {
             <rect x="20" y="20" width="${width - 40}" height="${height - 40}" fill="none" stroke="url(#gold)" stroke-width="3"/>
             <text x="50%" y="50%" font-family="Georgia, 'Noto Nastaliq Urdu', serif" font-size="${fontSize}" fill="url(#gold)" text-anchor="middle" dominant-baseline="middle">${escaped}</text>
         </svg>`;
-        const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
+        const buffer = await getSharp()(Buffer.from(svg)).png().toBuffer();
         await sock.sendMessage(from, { image: buffer, caption: "✨ Calligraphy" }, { quoted: msg });
     } catch (e) {
         await sock.sendMessage(from, { text: "❌ Failed to generate calligraphy: " + e.message }, { quoted: msg });
@@ -68,7 +63,7 @@ async function compressCommand(sock, from, msg) {
         for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
 
         if (vType === 'imageMessage') {
-            const out = await sharp(buffer).resize({ width: 1024, withoutEnlargement: true }).jpeg({ quality: 50 }).toBuffer();
+            const out = await getSharp()(buffer).resize({ width: 1024, withoutEnlargement: true }).jpeg({ quality: 50 }).toBuffer();
             await sock.sendMessage(from, { image: out, caption: `✅ Compressed: ${(buffer.length / 1024).toFixed(0)}KB → ${(out.length / 1024).toFixed(0)}KB` }, { quoted: msg });
         } else {
             const tmpDir = path.join(__dirname, '../temp');
@@ -77,6 +72,7 @@ async function compressCommand(sock, from, msg) {
             const inPath = path.join(tmpDir, `${id}_in.mp4`);
             const outPath = path.join(tmpDir, `${id}_out.mp4`);
             await fs.writeFile(inPath, buffer);
+            const ffmpeg = getFfmpeg();
             await new Promise((resolve, reject) => {
                 ffmpeg(inPath)
                     .videoBitrate('500k')

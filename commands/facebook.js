@@ -6,20 +6,29 @@ const fs = require('fs');
 const path = require('path');
 const settings = require('../settings');
 
-let fbDownloaderLib = null;
-try {
-    fbDownloaderLib = require('@renpwn/fb-downloader');
-} catch (e) {}
+let _fbDownloaderLib;
+function getFbDownloader() {
+    if (_fbDownloaderLib === undefined) {
+        try { _fbDownloaderLib = require('@renpwn/fb-downloader'); } catch { _fbDownloaderLib = null; }
+    }
+    return _fbDownloaderLib;
+}
 
-let snapsaveLib = null;
-try {
-    snapsaveLib = require('snapsave-media-downloader');
-} catch (e) {}
+let _snapsaveLib;
+function getSnapsave() {
+    if (_snapsaveLib === undefined) {
+        try { _snapsaveLib = require('snapsave-media-downloader'); } catch { _snapsaveLib = null; }
+    }
+    return _snapsaveLib;
+}
 
-let btchLib = null;
-try {
-    btchLib = require('btch-downloader');
-} catch (e) {}
+let _btchLib;
+function getBtch() {
+    if (_btchLib === undefined) {
+        try { _btchLib = require('btch-downloader'); } catch { _btchLib = null; }
+    }
+    return _btchLib;
+}
 
 /**
  * Extract clean Facebook URL from query or message object
@@ -42,6 +51,7 @@ function extractFbUrl(input, message) {
  * Engine 1: @renpwn/fb-downloader (Direct Facebook CDN parser)
  */
 async function engineRenpwn(url) {
+    const fbDownloaderLib = getFbDownloader();
     if (!fbDownloaderLib) throw new Error('renpwn not installed');
     const getFBInfo = typeof fbDownloaderLib === 'function' ? fbDownloaderLib : fbDownloaderLib.getFBInfo;
     if (!getFBInfo) throw new Error('getFBInfo not found');
@@ -61,6 +71,7 @@ async function engineRenpwn(url) {
  * Engine 2: snapsave-media-downloader (SnapSave direct scraper)
  */
 async function engineSnapSave(url) {
+    const snapsaveLib = getSnapsave();
     const snap = snapsaveLib?.snapsave || (await import('snapsave-media-downloader').catch(() => ({}))).snapsave;
     if (!snap) throw new Error('snapsave not available');
 
@@ -148,6 +159,7 @@ async function engineDirectHTML(url) {
  * Engine 5: btch-downloader
  */
 async function engineBtch(url) {
+    const btchLib = getBtch();
     if (!btchLib || !btchLib.fbdown) throw new Error('btch fbdown not available');
     const res = await btchLib.fbdown(url);
     if (!res || !res.status || (!res.normal && !res.hd)) throw new Error('btch fbdown failed');

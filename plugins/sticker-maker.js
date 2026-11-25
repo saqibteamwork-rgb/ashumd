@@ -1,9 +1,7 @@
 // Jawad Tech 
 
 const { cmd } = require('../command');
-const { Sticker, StickerTypes } = require("wa-sticker-formatter");
 const config = require('../config');
-const StickerMaker = require('../lib/sticker-maker');
 const crypto = require('crypto');
 
 // Mega Sticker Command
@@ -32,6 +30,7 @@ cmd(
             
             // Handle different media types
             if (mime === "imageMessage" || mime === "stickerMessage") {
+                const { Sticker, StickerTypes } = require("wa-sticker-formatter");
                 // For images and stickers - use wa-sticker-formatter directly
                 media = await mek.quoted.download();
                 
@@ -46,6 +45,8 @@ cmd(
                 stickerBuffer = await sticker.toBuffer();
                 
             } else if (mime === "videoMessage") {
+                const StickerMaker = require('../lib/sticker-maker');
+                const { Sticker, StickerTypes } = require("wa-sticker-formatter");
                 // For videos - convert to WebP first
                 media = await mek.quoted.download();
                 const webpBuffer = await StickerMaker.videoToWebp(media);
@@ -86,6 +87,7 @@ cmd({
     try {
         if (!args[0]) return reply("*Please provide text!*");
 
+        const StickerMaker = require('../lib/sticker-maker');
         const gifBuffer = await StickerMaker.fetchGif(`https://api-fix.onrender.com/api/maker/attp?text=${encodeURIComponent(args[0])}`);
         const stickerBuffer = await StickerMaker.gifToSticker(gifBuffer);
 

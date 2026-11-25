@@ -3,11 +3,8 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+const { getFfmpeg } = require('../lib/lazyMedia');
 const crypto = require('crypto');
-
-ffmpeg.setFfmpegPath(ffmpegStatic);
 
 const FILTERS = {
     robot:      "afftfilt=real='hypot(re,im)*sin(0)':imag='hypot(re,im)*cos(0)'",
@@ -55,7 +52,7 @@ async function vcCommand(sock, from, msg, args) {
         await fs.writeFile(inPath, buffer);
 
         await new Promise((resolve, reject) => {
-            ffmpeg(inPath)
+            getFfmpeg()(inPath)
                 .audioFilters(FILTERS[type])
                 .toFormat('ogg')
                 .audioCodec('libopus')

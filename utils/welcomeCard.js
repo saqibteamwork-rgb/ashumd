@@ -12,7 +12,7 @@
  * ============================================================================
  */
 
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 const axios = require('axios');
 
 /**
@@ -25,7 +25,7 @@ async function generateDefaultAvatar(size = 250) {
         <circle cx="${size / 2}" cy="${size * 0.38}" r="${size * 0.18}" fill="#ff4d6d" opacity="0.85"/>
         <path d="M ${size * 0.2} ${size * 0.88} C ${size * 0.2} ${size * 0.65}, ${size * 0.35} ${size * 0.62}, ${size * 0.5} ${size * 0.62} C ${size * 0.65} ${size * 0.62}, ${size * 0.8} ${size * 0.65}, ${size * 0.8} ${size * 0.88} Z" fill="#ff4d6d" opacity="0.85"/>
     </svg>`;
-    return await sharp(Buffer.from(svg)).png().toBuffer();
+    return await getSharp()(Buffer.from(svg)).png().toBuffer();
 }
 
 /**
@@ -61,7 +61,7 @@ async function generateWelcomeCard(rawAvatarBuffer, options = {}) {
 
     let circularAvatar;
     try {
-        circularAvatar = await sharp(avatarInput)
+        circularAvatar = await getSharp()(avatarInput)
             .resize(avatarSize, avatarSize, { fit: 'cover', position: 'center' })
             .composite([{ input: circleMask, blend: 'dest-in' }])
             .png()
@@ -70,7 +70,7 @@ async function generateWelcomeCard(rawAvatarBuffer, options = {}) {
         console.error('[welcomeCard] Error creating circular avatar:', err.message);
         try {
             const fallback = await generateDefaultAvatar(avatarSize);
-            circularAvatar = await sharp(fallback)
+            circularAvatar = await getSharp()(fallback)
                 .composite([{ input: circleMask, blend: 'dest-in' }])
                 .png()
                 .toBuffer();
@@ -132,7 +132,7 @@ async function generateWelcomeCard(rawAvatarBuffer, options = {}) {
     `);
 
     // 3. Composite avatar onto SVG background
-    const finalBuffer = await sharp(svgBackground)
+    const finalBuffer = await getSharp()(svgBackground)
         .composite([
             {
                 input: circularAvatar,

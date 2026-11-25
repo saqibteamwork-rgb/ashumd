@@ -2,7 +2,7 @@
 'use strict';
 
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 
 /**
  * .toimg / .photo / .s2img
@@ -45,7 +45,7 @@ async function toimgCommand(sock, from, msg) {
         }
 
         // Convert WebP (static or animated first-frame) to crisp PNG
-        const imageBuffer = await sharp(buffer, { pages: 1 })
+        const imageBuffer = await getSharp()(buffer, { pages: 1 })
             .png({ quality: 95 })
             .toBuffer();
 

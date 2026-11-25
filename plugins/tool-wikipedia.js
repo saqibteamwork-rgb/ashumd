@@ -1,6 +1,5 @@
 const { cmd, commands } = require("../command");
 const { fetchJson } = require("../lib/functions");
-const { translate } = require("@vitalets/google-translate-api");
 
 cmd({
   pattern: "wikipedia",
@@ -26,6 +25,7 @@ cmd({
     const { wiki, thumb } = response.data;
 
     // Translate the Wikipedia text to English
+    const { translate } = require("@vitalets/google-translate-api");
     const translated = await translate(wiki, { to: "en" });
 
     let message = `📖 *Wikipedia Result*\n\n📝 *Query:* ${q}\n\n${translated.text}`;

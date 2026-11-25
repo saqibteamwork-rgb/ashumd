@@ -16,11 +16,8 @@
 const { downloadContentFromMessage, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const fs = require('fs-extra');
 const path = require('path');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegStatic = require('ffmpeg-static');
+const { getFfmpeg } = require('../lib/lazyMedia');
 const crypto = require('crypto');
-
-ffmpeg.setFfmpegPath(ffmpegStatic);
 
 const TEMP_DIR = path.join(__dirname, '..', 'temp');
 fs.ensureDirSync(TEMP_DIR);
@@ -200,7 +197,7 @@ async function mtCommand(sock, from, msg, args = []) {
                 await fs.writeFile(inPath, rawBuffer);
 
                 await new Promise((resolve, reject) => {
-                    ffmpeg(inPath)
+                    getFfmpeg()(inPath)
                         .toFormat('ogg')
                         .audioCodec('libopus')
                         .audioChannels(1)

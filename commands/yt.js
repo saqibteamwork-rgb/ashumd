@@ -14,14 +14,17 @@
  */
 
 const axios = require('axios');
-const yts = require('yt-search');
-const ytdl = require('ytdl-lite');
+let _yts = null;
+let _ytdl = null;
+let _ytdlAuto = null;
+const getYts = () => (_yts || (_yts = require('yt-search')));
+const getYtdl = () => (_ytdl || (_ytdl = require('ytdl-lite')));
+const getYtdlAuto = () => (_ytdlAuto || (_ytdlAuto = require('../lib/ytdlScraper').ytdlAuto));
 const fsSync = require('fs');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const settings = require('../settings');
-const { ytdlAuto } = require('../lib/ytdlScraper');
 
 // 30-minute in-memory cache for ultra-smooth re-requests
 const linkCache = new Map();
@@ -60,7 +63,7 @@ function parseDurationToSeconds(durationStr) {
 async function searchYoutube(query) {
     // 1. Primary: yt-search
     try {
-        const search = await yts(query);
+        const search = await getYts()(query);
         if (search?.videos?.length > 0) {
             const v = search.videos[0];
             return {
@@ -76,7 +79,7 @@ async function searchYoutube(query) {
 
     // 2. Fallback: ytdl-lite search
     try {
-        const results = await ytdl.search(query, 1);
+        const results = await getYtdl().search(query, 1);
         if (results && results.length > 0) {
             const v = results[0];
             return {
@@ -108,7 +111,7 @@ async function getYoutubeDownloadLinks(url, type = 'mp4') {
     }
 
     try {
-        const result = await ytdlAuto(url, format);
+        const result = await getYtdlAuto()(url, format);
         if (result && result.status && result.download_url) {
             const resultData = {
                 title: result.title || 'YouTube Media',

@@ -2,7 +2,7 @@
 'use strict';
 
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 
 /**
  * Extract image or sticker buffer from message or quoted message
@@ -64,7 +64,7 @@ async function photoFilterCommand(sock, from, msg, filterType = 'enhance', args 
 
         await sock.sendMessage(from, { react: { text: '🎨', key: msg.key } }).catch(() => {});
 
-        let pipeline = sharp(extracted.buffer, { pages: 1 });
+        let pipeline = getSharp()(extracted.buffer, { pages: 1 });
         let outMime = 'image/jpeg';
         let actionLabel = 'Enhanced';
 

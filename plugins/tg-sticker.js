@@ -2,8 +2,6 @@ const config = require('../config');
 const { cmd } = require('../command');
 const axios = require('axios');
 const { getBuffer } = require("../lib/functions");
-const { videoToWebp } = require('../lib/video-utils');
-const { Sticker, createSticker, StickerTypes } = require("wa-sticker-formatter");
 
 // Telegram Sticker API configuration
 const stickerAPI = {
@@ -92,6 +90,8 @@ cmd({
                         const videoBuffer = await getBuffer(stickerUrl);
                         
                         // Convert video to WebP sticker
+                        const { videoToWebp } = require('../lib/video-utils');
+                        const { Sticker, StickerTypes } = require("wa-sticker-formatter");
                         const webpBuffer = await videoToWebp(videoBuffer);
                         
                         // Create sticker with proper metadata

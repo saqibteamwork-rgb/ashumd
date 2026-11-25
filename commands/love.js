@@ -1,5 +1,5 @@
 // commands/love.js - Ultra Stylish Love Expression for Nishay & Loved Ones
-const sharp = require('sharp');
+const { getSharp } = require('../lib/lazyMedia');
 const settings = require('../settings');
 
 function toBoldScript(str) {
@@ -152,7 +152,7 @@ async function generateLoveCardImage(name) {
             <text x="400" y="745" font-family="sans-serif" font-size="18" font-weight="bold" fill="#ff758c" text-anchor="middle" letter-spacing="3">POWERED BY MR SAQIB MD</text>
         </svg>`;
 
-        return await sharp(Buffer.from(svg)).png().toBuffer();
+        return await getSharp()(Buffer.from(svg)).png().toBuffer();
     } catch (e) {
         console.error('[Love Image Gen Error]:', e);
         return null;

@@ -1,15 +1,14 @@
 // commands/sticker.js - High Quality Sticker Maker with Custom EXIF (MR SAQIB MD)
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
-const sharp = require('sharp');
-const webpmux = require('node-webpmux');
+const { getSharp, getWebpmux, getFfmpegPath } = require('../lib/lazyMedia');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
-const ffmpegStatic = require('ffmpeg-static');
 
 // Helper to inject WhatsApp sticker EXIF metadata
 async function addExif(webpBuffer, packname = 'MR SAQIB MD', author = 'MR SAQIB') {
     try {
+        const webpmux = getWebpmux();
         const img = new webpmux.Image();
         await img.load(webpBuffer);
         const json = {
@@ -94,7 +93,7 @@ async function stickerCommand(sock, from, msg, args) {
 
         if (media.type === 'image') {
             // High quality image to 512x512 WebP using sharp
-            const webpBuffer = await sharp(buffer)
+            const webpBuffer = await getSharp()(buffer)
                 .resize(512, 512, {
                     fit: 'contain',
                     background: { r: 0, g: 0, b: 0, alpha: 0 }
@@ -118,7 +117,7 @@ async function stickerCommand(sock, from, msg, args) {
             const outPath = path.join(tmpDir, `stk_out_${Date.now()}.webp`);
             fs.writeFileSync(inPath, buffer);
 
-            const ffmpegBin = ffmpegStatic || 'ffmpeg';
+            const ffmpegBin = getFfmpegPath() || 'ffmpeg';
             const cmd = `"${ffmpegBin}" -i "${inPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease,fps=12,format=rgba,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=00000000" -loop 0 -ss 0 -t 10 -preset default -an -vsync 0 "${outPath}" -y`;
 
             await new Promise((resolve, reject) => {

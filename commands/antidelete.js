@@ -4,6 +4,8 @@ const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const { writeFile } = require('fs/promises');
 
 const messageStore = new Map();
+const MAX_ANTIDELETE_ENTRIES = 120;
+const ANTIDELETE_TTL_MS = 30 * 60 * 1000;
 const CONFIG_PATH = path.join(__dirname, '../data/antidelete.json');
 const TEMP_MEDIA_DIR = path.join(__dirname, '../tmp');
 
@@ -41,6 +43,12 @@ const getFolderSizeInMB = (folderPath) => {
 // Function to clean temp folder if size exceeds 100MB
 const cleanTempFolderIfLarge = () => {
     try {
+        const now = Date.now();
+        for (const [k, v] of messageStore.entries()) {
+            if (!v || (now - (v._ts || 0)) > ANTIDELETE_TTL_MS) {
+                messageStore.delete(k);
+            }
+        }
         if (getFolderSizeInMB(TEMP_MEDIA_DIR) > 100) {
             const files = fs.readdirSync(TEMP_MEDIA_DIR);
             for (const file of files) {
@@ -149,13 +157,18 @@ async function storeMessage(message) {
             await writeFile(mediaPath, buffer);
         }
 
+        if (messageStore.size >= MAX_ANTIDELETE_ENTRIES) {
+            const oldestKey = messageStore.keys().next().value;
+            if (oldestKey) messageStore.delete(oldestKey);
+        }
         messageStore.set(messageId, {
             content,
             mediaType,
             mediaPath,
             sender,
             group: message.key.remoteJid.endsWith('@g.us') ? message.key.remoteJid : null,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            _ts: Date.now()
         });
     } catch (err) {}
 }

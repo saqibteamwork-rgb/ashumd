@@ -6,12 +6,6 @@
  * Automatically inspects the URL and downloads from YouTube, Instagram, TikTok, Facebook, CapCut, etc.
  */
 
-const { ytmp4Command, ytmp3Command } = require('./yt');
-const tiktokCommand = require('./tiktok');
-const instagramCommand = require('./instagram');
-const facebookCommand = require('./facebook');
-const { capcutCommand } = require('./capcut');
-
 async function downloadCommand(sock, from, msg, args = []) {
     const url = args[0]?.trim();
     if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
@@ -40,18 +34,24 @@ async function downloadCommand(sock, from, msg, args = []) {
     const lower = url.toLowerCase();
 
     if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
+        const { ytmp4Command } = require('./yt');
         return await ytmp4Command(sock, from, msg, args);
     } else if (lower.includes('tiktok.com') || lower.includes('douyin.com')) {
+        const tiktokCommand = require('./tiktok');
         return await tiktokCommand(sock, from, msg, url);
     } else if (lower.includes('instagram.com')) {
+        const instagramCommand = require('./instagram');
         return await instagramCommand(sock, from, msg, url);
     } else if (lower.includes('facebook.com') || lower.includes('fb.watch')) {
+        const facebookCommand = require('./facebook');
         return await facebookCommand(sock, from, msg, url);
     } else if (lower.includes('capcut.com')) {
+        const { capcutCommand } = require('./capcut');
         return await capcutCommand(sock, from, msg, args);
     } else {
         // Fallback: try YouTube downloader or report
         try {
+            const { ytmp4Command } = require('./yt');
             return await ytmp4Command(sock, from, msg, args);
         } catch {
             return await sock.sendMessage(from, {

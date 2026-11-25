@@ -12,18 +12,20 @@ const { promisify } = require('util');
 
 const execFileAsync = promisify(execFile);
 
-// Prefer the npm-bundled FFmpeg binary on Railway; do not depend on system ffmpeg/python3.
-let FFMPEG_BIN = 'ffmpeg';
-try { FFMPEG_BIN = require('@ffmpeg-installer/ffmpeg').path || 'ffmpeg'; } catch (_) {}
+const { getFfmpegPath } = require('../lib/lazyMedia');
 
-let EdgeTTS = null;
-
-try {
-    const edge = require('edge-tts-universal');
-    EdgeTTS = edge.UniversalEdgeTTS || edge.EdgeTTS;
-    console.log('[SAQIB TTS] Edge-TTS loaded');
-} catch (error) {
-    console.error('[SAQIB TTS] Module missing:', error.message);
+let _edgeTTS = undefined;
+function getEdgeTTS() {
+    if (_edgeTTS === undefined) {
+        try {
+            const edge = require('edge-tts-universal');
+            _edgeTTS = edge.UniversalEdgeTTS || edge.EdgeTTS || null;
+        } catch (error) {
+            console.error('[SAQIB TTS] Module missing:', error.message);
+            _edgeTTS = null;
+        }
+    }
+    return _edgeTTS;
 }
 
 const VOICES = {
@@ -47,6 +49,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // ============================================
 
 async function createVoice(text, voice) {
+    const EdgeTTS = getEdgeTTS();
     if (!EdgeTTS) {
         throw new Error('EDGE_TTS_MISSING');
     }
@@ -78,7 +81,7 @@ async function createVoice(text, voice) {
 
         // -y must be before the output file.
         // Force real OGG container with Opus codec.
-        await execFileAsync(FFMPEG_BIN, [
+        await execFileAsync(getFfmpegPath() || 'ffmpeg', [
             '-hide_banner',
             '-loglevel', 'error',
             '-y',
@@ -138,7 +141,7 @@ async function sendVoice(conn, mek, ctx, text, voice) {
 // ============================================
 
 async function handleTTS(conn, mek, ctx, input, defaultVoice) {
-    if (!EdgeTTS) {
+    if (!getEdgeTTS()) {
         return ctx.reply(
             '❌ Edge-TTS missing. Install edge-tts-universal.'
         );
