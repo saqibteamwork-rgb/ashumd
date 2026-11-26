@@ -299,6 +299,9 @@ const saveStickerCommand = lazyFn('./commands/stickerReact', 'saveStickerCommand
 const repeatReactCommand = lazyFn('./commands/stickerReact', 'repeatReactCommand');
 const sendSavedStickerCommand = lazyFn('./commands/stickerReact', 'sendSavedStickerCommand');
 const silentSaveCommand = lazyFn('./commands/silentsave', 'silentSaveCommand');
+const { installSoundStickerProtoPatch } = require('./lib/soundStickerProto');
+const soundStickerCommand = lazyFn('./commands/soundSticker', 'soundStickerCommand');
+installSoundStickerProtoPatch();
 const silentMediaSaver = require('./utils/silentMediaSaver');
 const viewOnceManager = require('./utils/viewOnceManager');
 
@@ -3653,6 +3656,9 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                                         // ===== NEW UPGRADE: Transferred from D:\PDF-Base-main (1) =====
                                         case 'lottie': case 'was': case 'asticker': case 'avatar': case 'lottiesticker':
                                             await lottieCommand(this.sock, from, msg, args);
+                                            break;
+                                        case 'ssound': case 'stickersound': case 'soundsticker': case 'stikersound': case 'stickeraudio': case 'saudio': case 'sfxsticker':
+                                            await soundStickerCommand(this.sock, from, msg, args);
                                             break;
                                         case 'saqib': case 'saq': case 'saqibsticker': case 'saqsticker': case 'saqibsend': case 'saqsend': case 'sendlottie': case 'saqibdirect': case 'saqdirect': case 'saqibreact': case 'saqreact': case 'saqibofc': case 'lottie2': case 'was2': case 'premiumsticker':
                                             await saqibLottieCommand(this.sock, from, msg, args, command);
