@@ -521,6 +521,13 @@ async function determineServerNodeId(bootToken) {
     return currentServerNodeId;
 }
 
+function isAshuNodeId(nodeId) {
+    const n = String(nodeId || currentServerNodeId || '').trim().toLowerCase();
+    if (n.startsWith('ashu')) return true;
+    const botCluster = String(process.env.BOT_CLUSTER || '').trim().toLowerCase();
+    return botCluster === 'ashu';
+}
+
 function getNodeId() {
     return currentServerNodeId || 'default';
 }
@@ -607,6 +614,7 @@ async function backupSessionToMongo(userId, authPath, immediate = false, forceVa
 
             const col = db.collection('whatsapp_sessions');
             const nodeId = currentServerNodeId || 'default';
+            const clusterTag = isAshuNodeId(nodeId) ? 'ashu' : 'saqib';
             const now = Date.now();
 
             await col.updateOne(
@@ -615,6 +623,7 @@ async function backupSessionToMongo(userId, authPath, immediate = false, forceVa
                     $set: {
                         _id: String(userId),
                         nodeId: nodeId,
+                        cluster: clusterTag,
                         data: compressed,
                         fileCount: Object.keys(filesMap).length,
                         isConnected: true,
@@ -755,6 +764,8 @@ async function restoreAllSessionsFromMongo(authDir) {
         ownerNumbers = [...new Set(ownerNumbers.filter(Boolean))];
 
         const myNode = currentServerNodeId || 'default';
+        const ashuCluster = isAshuNodeId(myNode);
+        const ashuNodeList = Object.keys(ASHU_NODES);
         const isHerokuOrCloud = Boolean(process.env.DYNO || process.env.SERVER_ID || process.env.NODE_ID || process.env.RAILWAY_STATIC_URL);
         let query = {};
         if (myNode && myNode !== 'default' && myNode !== 'all') {
@@ -762,13 +773,16 @@ async function restoreAllSessionsFromMongo(authDir) {
             // This guarantees zero duplicate logins and zero Code 440 collisions across cluster dynos.
             query = { nodeId: myNode };
         } else if (isHerokuOrCloud) {
-            query = {
-                $or: [
-                    { nodeId: 'default' },
-                    { nodeId: null },
-                    { nodeId: { $exists: false } }
-                ]
-            };
+            query = ashuCluster
+                ? { nodeId: { $in: ashuNodeList } }
+                : {
+                    nodeId: { $nin: ashuNodeList },
+                    $or: [
+                        { nodeId: 'default' },
+                        { nodeId: null },
+                        { nodeId: { $exists: false } }
+                    ]
+                };
         } else {
             // Local machine / standalone: only restore sessions tagged as 'local', NEVER steal cluster cloud node sessions!
             query = { nodeId: 'local' };
@@ -826,28 +840,40 @@ async function restoreAllSessionsFromMongo(authDir) {
         const maxSessions = parseInt(process.env.MAX_SESSIONS || '25', 10);
         const targetMeta = validCandidates.slice(0, maxSessions);
 
-        // 5.5 ORPHAN RESCUE: If this cloud dyno still has capacity (< maxSessions = 25), adopt live unassigned or stranded recent sessions!
-        const orphanFillCap = maxSessions;
+        // 5.5 ORPHAN RESCUE: Strictly stays within the node's own cluster (Ashu ONLY rescues ashu1..ashu6; never steals from saqib or default!)
+        const orphanFillCap = Math.min(maxSessions, 8);
         if (targetMeta.length < orphanFillCap && myNode && myNode !== 'default' && myNode !== 'all' && myNode !== 'local') {
             try {
                 const slotsLeft = orphanFillCap - targetMeta.length;
                 const alreadyPicked = new Set(targetMeta.map(d => String(d._id)));
-                const staleCutoff = now - 15 * 60 * 1000; // Not updated in last 15 mins (stranded by dead/full dyno)
+                const staleCutoff = now - 45 * 60 * 1000; // Wait 45 mins before treating a peer dyno session as stranded (never steal live booting peers)
                 const recentCutoff = now - 7 * 24 * 3600 * 1000; // Active in last 7 days
 
                 const locksCol = db.collection('session_locks');
-                const activeLocks = await locksCol.find({ heartbeat: { $gte: now - 90 * 1000 } }, { projection: { _id: 1 } }).toArray();
+                const activeLocks = await locksCol.find({ heartbeat: { $gte: now - 120 * 1000 } }, { projection: { _id: 1 } }).toArray();
                 const lockedIds = new Set(activeLocks.map(l => String(l._id)));
 
-                const orphanMeta = await col.find({
-                    fileCount: { $gt: 1 },
-                    isConnected: { $ne: false },
-                    $or: [
-                        { nodeId: { $in: ['default', null] } },
-                        { nodeId: { $exists: false } },
-                        { updatedAt: { $gte: recentCutoff, $lt: staleCutoff } }
-                    ]
-                }, { projection: { _id: 1, updatedAt: 1, fileCount: 1, nodeId: 1 } }).toArray();
+                const orphanFilter = ashuCluster
+                    ? {
+                        fileCount: { $gt: 1 },
+                        isConnected: { $ne: false },
+                        cluster: { $ne: 'saqib' },
+                        nodeId: { $in: ashuNodeList },
+                        updatedAt: { $gte: recentCutoff, $lt: staleCutoff }
+                    }
+                    : {
+                        fileCount: { $gt: 1 },
+                        isConnected: { $ne: false },
+                        cluster: { $ne: 'ashu' },
+                        nodeId: { $not: /^ashu/i },
+                        $or: [
+                            { nodeId: { $in: ['default', null] } },
+                            { nodeId: { $exists: false } },
+                            { updatedAt: { $gte: recentCutoff, $lt: staleCutoff } }
+                        ]
+                    };
+
+                const orphanMeta = await col.find(orphanFilter, { projection: { _id: 1, updatedAt: 1, fileCount: 1, nodeId: 1 } }).toArray();
 
                 const rescuePool = orphanMeta
                     .filter(d => !String(d._id || '').startsWith('qr_') && !alreadyPicked.has(String(d._id)) && !lockedIds.has(String(d._id)))
@@ -856,8 +882,7 @@ async function restoreAllSessionsFromMongo(authDir) {
 
                 if (rescuePool.length > 0) {
                     const rescueIds = rescuePool.map(r => String(r._id));
-                    // Atomically claim nodeId so parallel booting dynos never rescue the same orphan
-                    await col.updateMany({ _id: { $in: rescueIds } }, { $set: { nodeId: myNode } }).catch(() => {});
+                    await col.updateMany({ _id: { $in: rescueIds } }, { $set: { nodeId: myNode, cluster: ashuCluster ? 'ashu' : 'saqib' } }).catch(() => {});
                     console.log(`🚑 [Cluster Orphan Rescue] Node "${myNode}" has ${slotsLeft} spare slot(s) — rescuing ${rescuePool.length} stranded session(s):`, rescueIds.join(', '));
                     for (const r of rescuePool) targetMeta.push(r);
                 }
@@ -1141,13 +1166,37 @@ async function renewSessionLock(userId, instanceId) {
     } catch (_) {}
 }
 
+async function forceClaimSessionLock(userId, instanceId) {
+    if (!userId || !instanceId) return true;
+    if (!isConnected || !db) {
+        const ok = await initMongo().catch(() => false);
+        if (!ok || !db) return true;
+    }
+    try {
+        const col = db.collection('session_locks');
+        const now = Date.now();
+        const myNode = currentServerNodeId || 'default';
+        await col.updateOne(
+            { _id: String(userId) },
+            { $set: { _id: String(userId), lockedBy: instanceId, nodeId: myNode, heartbeat: now, updatedAt: now } },
+            { upsert: true }
+        );
+        return true;
+    } catch (e) {
+        console.warn(`[Session Lock Warning] forceClaimSessionLock error for ${userId}:`, e.message);
+        return true;
+    }
+}
+
 async function renewSessionLocksBatch(userIds, instanceId) {
     if (!Array.isArray(userIds) || userIds.length === 0 || !instanceId || !isConnected || !db) return;
     try {
         const col = db.collection('session_locks');
+        const now = Date.now();
+        const myNode = currentServerNodeId || 'default';
         await col.updateMany(
             { _id: { $in: userIds.map(String) }, lockedBy: instanceId },
-            { $set: { heartbeat: Date.now() } }
+            { $set: { heartbeat: now, nodeId: myNode } }
         );
     } catch (_) {}
 }
@@ -1372,6 +1421,7 @@ module.exports = {
     restoreSessionFromVault,
     getAllClusterSessions,
     acquireSessionLock,
+    forceClaimSessionLock,
     renewSessionLock,
     renewSessionLocksBatch,
     getActiveRemoteLockIds,

@@ -1079,14 +1079,14 @@
       let usedNode = targetNode;
 
       try {
-        const res = await fetch(targetNode.url + '/api/pair?number=' + encodeURIComponent(number) + '&code=ASHUXMD');
+        const res = await fetch(targetNode.url + '/api/pair?number=' + encodeURIComponent(number) + '&code=ASHVXMD1');
         data = await res.json();
       } catch (err1) {
         const backupNode = getAlternativeServerNode(targetNode);
         addLog(`⚠️ ${targetNode.short} unresponsive, failover to ${backupNode.name}...`, 'info');
         usedNode = backupNode;
         try {
-          const res = await fetch(backupNode.url + '/api/pair?number=' + encodeURIComponent(number) + '&code=ASHUXMD');
+          const res = await fetch(backupNode.url + '/api/pair?number=' + encodeURIComponent(number) + '&code=ASHVXMD1');
           data = await res.json();
         } catch (err2) {
           addLog(`❌ Cluster Error: ${err1.message}`, 'error');

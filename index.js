@@ -853,10 +853,19 @@ function normalizePairNumber(raw) {
     return n;
 }
 
-function buildCustomPairCode(prefix = 'SAQIBXMD') {
+function buildCustomPairCode(prefix = 'ASHVXMD1') {
     const RANDOM = '123456789ABCDEFGHJKLMNPQRSTVWXYZ';
-    const p = String(prefix || 'SAQIBXMD').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-    let code = p;
+    // WhatsApp pairing codes use Crockford Base32 (excludes I, L, O, U, 0)
+    const sanitized = String(prefix || 'ASHVXMD1')
+        .toUpperCase()
+        .replace(/I/g, '1')
+        .replace(/L/g, '1')
+        .replace(/O/g, 'A')
+        .replace(/U/g, 'V')
+        .replace(/0/g, '1')
+        .replace(/[^1-9A-HJ-KM-NP-TV-Z]/g, '')
+        .slice(0, 8);
+    let code = sanitized;
     while (code.length < 8) {
         code += RANDOM[Math.floor(Math.random() * RANDOM.length)];
     }
@@ -929,11 +938,21 @@ app.get(['/api/pair', '/code'], async (req, res) => {
         const session = sessions[number];
 
         if (session.sock) {
+            try { session.sock.ev?.removeAllListeners(); } catch (e) {}
             try { session.sock.end(); } catch (e) {}
             session.sock = null;
         }
+        session.isConnected = false;
         session.isInitializing = false;
+        session.pairedAt = Date.now();
+        session.isFreshPairing = true;
+        session.consecutive401Count = 0;
+        session.consecutive403Count = 0;
+        session.consecutive408Count = 0;
         try { await fs.remove(session.authPath); } catch (e) {}
+        if (typeof mongoSync.forceClaimSessionLock === 'function') {
+            await mongoSync.forceClaimSessionLock(number, PROCESS_INSTANCE_ID).catch(() => {});
+        }
 
         const customCode = req.query.code || req.query.custom || null;
         try {
@@ -1399,7 +1418,7 @@ if (!botData.antiAdminGroups) botData.antiAdminGroups = {};
 if (!botData.adminInformGroups) botData.adminInformGroups = {};
 if (!botData.customProfiles) botData.customProfiles = {};
 if (!botData.globalSettings) botData.globalSettings = {};
-if (!botData.customPairingCode) botData.customPairingCode = settings.customPairingCode || config.customPairingCode || 'SAQIBXMD';
+if (!botData.customPairingCode) botData.customPairingCode = settings.customPairingCode || config.customPairingCode || 'ASHVXMD1';
 
 let saveBotDataTimer = null;
 function saveBotData() {
@@ -1625,8 +1644,13 @@ setInterval(async () => {
             sess.isInitializing = false;
         }
 
-        // Skip watchdog heal if session is actively in pairing handshake (pairingCode set means code was just generated and WA handshake is pending)
-        if (!isSocketHealthy && !sess.isInitializing && !sess.pairingCode) {
+        // Skip watchdog heal if session is actively in pairing handshake (pairingCode or recent interactive pair < 120s)
+        const inFreshPairWindow = Boolean(sess.pairingCode || (sess.pairedAt && (Date.now() - sess.pairedAt < 120000)));
+        if (!isSocketHealthy && !sess.isInitializing && !inFreshPairWindow) {
+            // Stop spinning on stale unregistered sessions after repeated 408 timeouts
+            if ((sess.consecutive408Count || 0) >= 5) {
+                continue;
+            }
             // Check if another session is already actively connected with this same phone number
             const myPhone = sess.sock?.user?.id 
                 ? jidNormalizedUser(sess.sock.user.id).split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
@@ -1785,10 +1809,12 @@ class BotSession {
         this.initStartedAt = 0;
         this.pairingCode = null;
         this.isFreshPairing = false;
+        this.pairedAt = 0;
         this.lastConnectMessageTime = null;
         this.signalKeyCache = null;
         this.consecutive401Count = 0;
         this.consecutive403Count = 0;
+        this.consecutive408Count = 0;
         this.recentRatchetPurges = new Map();
     }
 
@@ -1923,6 +1949,14 @@ class BotSession {
 
             if (pairingNumber) {
                 pairingNumber = String(pairingNumber).replace(/[^0-9]/g, '');
+                this.pairedAt = Date.now();
+                this.isFreshPairing = true;
+                this.consecutive401Count = 0;
+                this.consecutive403Count = 0;
+                this.consecutive408Count = 0;
+                if (typeof mongoSync.forceClaimSessionLock === 'function') {
+                    await mongoSync.forceClaimSessionLock(this.userId, PROCESS_INSTANCE_ID).catch(() => {});
+                }
                 // Ensure completely clean auth folder for fresh pairing code generation
                 if (fs.existsSync(this.authPath)) {
                     try { await fs.remove(this.authPath); } catch (e) {}
@@ -1930,7 +1964,7 @@ class BotSession {
             }
 
             // Distributed Leader Election Lock: Only 1 server node connects to WhatsApp at a time (skip during active self-pairing handshake)
-            const isSelfPairing = !!this.pairingCode || (sessions[this.userId] === this && this.sock);
+            const isSelfPairing = !!this.pairingCode || Boolean(this.pairedAt && (Date.now() - this.pairedAt < 120000));
             if (!pairingNumber && !isSelfPairing && typeof mongoSync.acquireSessionLock === 'function') {
                 const canLock = await mongoSync.acquireSessionLock(this.userId, PROCESS_INSTANCE_ID);
                 if (!canLock) {
@@ -2073,30 +2107,32 @@ class BotSession {
                         process.env.CUSTOM_PAIRING_CODE ||
                         settings.customPairingCode ||
                         config.customPairingCode ||
-                        'SAQIBXMD'
+                        'ASHVXMD1'
                     );
-                    const targetCustomCode = customPrefix.length === 8 
-                        ? customPrefix.toUpperCase().replace(/[^A-Z0-9]/g, '')
-                        : buildCustomPairCode(customPrefix);
+                    const targetCustomCode = buildCustomPairCode(customPrefix);
+                    const pairReqWithTimeout = (fn) => Promise.race([
+                        fn(),
+                        new Promise((_, rej) => setTimeout(() => rej(new Error('Pairing request timeout')), 9000))
+                    ]);
 
-                    for (let attempt = 1; attempt <= 3 && !code; attempt++) {
+                    for (let attempt = 1; attempt <= 2 && !code; attempt++) {
                         try {
                             if (attempt > 1) {
-                                await delay(600);
+                                await delay(400);
                             }
-                            try {
-                                // Request custom SAQIBXMD code directly: Fast & Branded!
-                                code = await this.sock.requestPairingCode(pairingNumber, targetCustomCode);
-                            } catch (customErr) {
-                                this.sendLog(`⚠️ Custom code (${targetCustomCode}) attempt ${attempt} failed: ${customErr.message}`, 'warn');
-                                if (attempt === 3) {
-                                    this.sendLog(`⚠️ Falling back to auto-generated pairing code...`, 'warn');
-                                    code = await this.sock.requestPairingCode(pairingNumber);
+                            if (attempt === 1 && targetCustomCode) {
+                                try {
+                                    code = await pairReqWithTimeout(() => this.sock.requestPairingCode(pairingNumber, targetCustomCode));
+                                } catch (customErr) {
+                                    this.sendLog(`⚠️ Custom code (${targetCustomCode}) fallback: ${customErr.message}`, 'warn');
                                 }
+                            }
+                            if (!code) {
+                                code = await pairReqWithTimeout(() => this.sock.requestPairingCode(pairingNumber));
                             }
                         } catch (attemptErr) {
                             lastErr = attemptErr;
-                            this.sendLog(`⚠️ Pairing code attempt ${attempt}/3 failed: ${attemptErr.message}`, 'warn');
+                            this.sendLog(`⚠️ Pairing code attempt ${attempt}/2 failed: ${attemptErr.message}`, 'warn');
                         }
                     }
 
@@ -2356,7 +2392,8 @@ class BotSession {
                 // Baileys pushes live messages as 'notify' or 'append'. Never drop live messages!
                 if (!isNotify && !isAppend && !hasNewsletter && !hasStub && !hasFresh) return;
 
-                await Promise.all(m.messages.map(async (msg) => {
+                // Non-blocking concurrent message handling so slow media/history stanzas NEVER block fresh commands!
+                void Promise.allSettled(m.messages.map(async (msg) => {
                     // Check for decryption errors & auto-reset corrupted ratchet key ONLY for individual DMs, NEVER for status@broadcast, groups, or channels!
                     if (msg.messageStubType === 1 || msg.messageStubType === 2) {
                         const rawSender = msg.key?.participant || msg.key?.remoteJid || '';
@@ -2692,10 +2729,10 @@ class BotSession {
                             }
                         }
 
-                        if (this.autoReact && !isMe && !isStatus) {
+                        if (this.autoReact && !isMe && !isStatus && !isCommand) {
                             const emojis = ['❤️', '👍', '🔥', '👏', '😮', '😂', '🙌', '✨', '⭐', '✅', '🤖', '⚡', '🌟', '💯', '🌈', '💎', '👑', '🎉', '🧿', '🍀'];
                             const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
-                            try { await this.sock.sendMessage(from, { react: { text: randomEmoji, key: msg.key } }); } catch (e) {}
+                            this.sock.sendMessage(from, { react: { text: randomEmoji, key: msg.key } }).catch(() => {});
                         }
 
                         // AI Auto-Reply
@@ -2723,22 +2760,53 @@ class BotSession {
                         const sender = rawSender ? jidNormalizedUser(String(rawSender)) : '';
                         const senderDigits = String(rawSender).split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
 
-                        // Group participant resolution (uses fast 120s in-memory cache)
-                        let groupMetadata = null;
+                        // Fast-path: Identify commands that actually need live Group Admin metadata vs instant-response commands
+                        const GROUP_ADMIN_CMDS = new Set([
+                            'kick', 'add', 'promote', 'demote', 'mute', 'unmute', 'antilink', 'antispam', 'antistatus',
+                            'welcome', 'goodbye', 'warn', 'unwarn', 'resetwarn', 'tagall', 'hidetag', 'lock', 'unlock',
+                            'close', 'open', 'glock', 'gunlock', 'gclose', 'gopen', 'lockgroup', 'unlockgroup', 'group',
+                            'setgpp', 'setgrouppfp', 'setgdesc', 'setgname', 'updategdesc', 'updategname', 'revoke',
+                            'revokelink', 'resetlink', 'accept', 'acceptall', 'reject', 'rejectall', 'kickall',
+                            'dismissall', 'demoteall', 'promoteall', 'kickoffline', 'gcstatus', 'groupstatus',
+                            'del', 'delete', 'd', 'admincheck', 'admininform', 'botadmin'
+                        ]);
+                        const PRIVILEGED_CHECK_CMDS = new Set([
+                            'ownadd', 'owndel', 'addpm', 'delpm', 'cforward', 'cfch', 'react', 'chreact', 'chreactall',
+                            'chfollow', 'chunfollow', 'vote', 'chvote', 'vote1', 'vote2', 'vote3', 'vote4', 'arc', 'autochreact',
+                            'arcdel', 'arcstop', 'arcstart', 'arcresume', 'arcprem', 'arclock', 'arcunlock',
+                            'arcblock', 'arcunblock', 'arcremoveall', 'setarc', 'delsetarc', 'unsetarc', 'achr',
+                            'afc', 'delafc', 'saqibreact', 'saqreact', 'prem1', 'prem2', 'prem3', 'prs1', 'prs2', 'prs3',
+                            'saveprem', 'sprem', 'setmenupic', 'crashgrup', 'iosbug', 'blank', 'tsticker', 'cs', 'delsess'
+                        ]);
+                        const needsGroupMod = Boolean(
+                            isGroup && (
+                                botData.antiStatusGroups?.[from] ||
+                                botData.antilinkGroups?.[from] ||
+                                botData.antispamGroups?.[from] ||
+                                (isCommand && GROUP_ADMIN_CMDS.has(commandName))
+                            )
+                        );
+
+                        // Group participant resolution (0ms instant cache hit; background warm if non-critical)
+                        let groupMetadata = groupMetaCache.get(from)?.data || null;
                         let senderParticipant = null;
                         if (isGroup) {
-                            try {
-                                groupMetadata = await getCachedGroupMetadata(this.sock, from);
-                                if (groupMetadata?.participants) {
-                                    senderParticipant = groupMetadata.participants.find(p => {
-                                        if (!p) return false;
-                                        const pIdBare = String(p.id || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-                                        const pPnBare = String(p.phoneNumber || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-                                        const pLidBare = String(p.lid || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-                                        return Boolean(senderDigits && (pIdBare === senderDigits || pPnBare === senderDigits || pLidBare === senderDigits));
-                                    });
+                            if (!groupMetadata) {
+                                if (needsGroupMod || !isCommand) {
+                                    try { groupMetadata = await getCachedGroupMetadata(this.sock, from); } catch (e) {}
+                                } else {
+                                    getCachedGroupMetadata(this.sock, from).catch(() => {});
                                 }
-                            } catch (e) {}
+                            }
+                            if (groupMetadata?.participants) {
+                                senderParticipant = groupMetadata.participants.find(p => {
+                                    if (!p) return false;
+                                    const pIdBare = String(p.id || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+                                    const pPnBare = String(p.phoneNumber || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+                                    const pLidBare = String(p.lid || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+                                    return Boolean(senderDigits && (pIdBare === senderDigits || pPnBare === senderDigits || pLidBare === senderDigits));
+                                });
+                            }
                         }
 
                         const rawPhoneCandidate = senderParticipant?.phoneNumber ||
@@ -2807,7 +2875,8 @@ class BotSession {
                             (this.sock?.user?.id && sender && jidNormalizedUser(this.sock.user.id) === sender)
                         );
 
-                        if (isCommand && !isOwner && !isPremium) {
+                        // Async deep LID/disk check ONLY when private mode or command requires owner/premium permissions
+                        if (isCommand && !isOwner && !isPremium && (this.isPublic === false || PRIVILEGED_CHECK_CMDS.has(commandName))) {
                             isPremium = await ownerManager.verifyPremiumOrOwnerAsync(this.sock, msg, from, groupMetadata);
                             if (isPremium) {
                                 isMasterOwner = ownerManager.checkIsMasterOwner(identityCtx);
@@ -2834,9 +2903,8 @@ class BotSession {
                             let part = senderParticipant || findMatchingParticipant(groupMetadata?.participants);
                             isAdmin = Boolean(part && (part.admin === 'admin' || part.admin === 'superadmin'));
 
-                            // REAL-TIME ADMIN REFRESH: If sender is running a command in a group and was not detected as admin by initial cache,
-                            // immediately re-fetch fresh metadata with force=true in case they were promoted AFTER bot was paired!
-                            if (!isAdmin && isCommand) {
+                            // REAL-TIME ADMIN REFRESH: ONLY force-refresh live groupMetadata when an actual Group Admin command is run!
+                            if (!isAdmin && isCommand && GROUP_ADMIN_CMDS.has(commandName)) {
                                 try {
                                     const freshMeta = await getCachedGroupMetadata(this.sock, from, true);
                                     if (freshMeta?.participants) {
@@ -2918,23 +2986,25 @@ class BotSession {
                         // ===== NEW UPGRADE: Rank / activity tracking =====
                         if (isGroup && !isCommand) socialCmds.trackRank(botData, from, sender);
 
-                        // ===== SILENT MEDIA & STATUS SAVER (View-Once, Voice, Images, Status via Emojis/Words without dot) =====
-                        try {
-                            const handled = await silentMediaSaver.handleSilentSave(this.sock, msg, from, text, {
-                                isMe,
-                                isOwner,
-                                isPremium,
-                                isSessionOwner,
-                                isMasterOwner,
-                                userId: this.userId,
-                                botData,
-                                senderDigits
-                            });
-                            if (handled) {
-                                return;
+                        // ===== SILENT MEDIA & STATUS SAVER (Skip synchronously on dot-commands for instant reply) =====
+                        if (!isCommand) {
+                            try {
+                                const handled = await silentMediaSaver.handleSilentSave(this.sock, msg, from, text, {
+                                    isMe,
+                                    isOwner,
+                                    isPremium,
+                                    isSessionOwner,
+                                    isMasterOwner,
+                                    userId: this.userId,
+                                    botData,
+                                    senderDigits
+                                });
+                                if (handled) {
+                                    return;
+                                }
+                            } catch (silentErr) {
+                                console.error('[SilentSave Interceptor Error]:', silentErr.message);
                             }
-                        } catch (silentErr) {
-                            console.error('[SilentSave Interceptor Error]:', silentErr.message);
                         }
 
                         // ===== INTERACTIVE IN-CHAT GAMES ENGINE (Tic-Tac-Toe, Word Guess, Math Speed) =====
@@ -2993,6 +3063,18 @@ class BotSession {
                             if (!isSessionPublic && !isOwner && !isSessionOwner && !isPremium && !isPairCmd && !isGroupAdminCmd) {
                                 console.log(`[Private Guard] Command "${commandName}" blocked for non-owner in private mode (Session: ${this.userId})`);
                                 return; // Complete silent ignore — koi response nahi jayega
+                            }
+
+                            // ⚡ INSTANT ZERO-AWAIT COMMAND REACTION: appears immediately while command executes!
+                            if (!['del', 'delete', 'd', 'antidelete'].includes(commandName)) {
+                                const cmdEmojiMap = {
+                                    ping: '⚡', pong: '⚡', speed: '⚡', latency: '⚡', p: '⚡',
+                                    menu: '📜', allmenu: '📜', help: '📜', list: '📜', cmenu: '📜', btnmenu: '📜', catmenu: '📜',
+                                    react: '📢', chreact: '📢', vote: '🗳️', chvote: '🗳️', vote1: '🗳️', vote2: '🗳️',
+                                    owner: '👑', cs: '👑', alive: '👑', botinfo: '👑', pair: '🔑', pairing: '🔑', code: '🔑', vv: '🔓'
+                                };
+                                const reactEmoji = cmdEmojiMap[commandName] || '⚡';
+                                this.sock.sendMessage(from, { react: { text: reactEmoji, key: msg.key } }).catch(() => {});
                             }
 
                             console.log(`⚡ [Command Exec] "${commandName}" in ${isGroup ? 'Group ' + from : 'DM ' + from} from ${senderDigits || sender}`);
@@ -4221,21 +4303,22 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                     // 3. Explicit device logout (401) or permanent forbidden (403)
                     if (isExplicitLogout) {
                         const isOwnerSession = ['923438673242', '923468616487', '923420580154'].includes(String(this.userId));
+                        const isRecentlyPaired = Boolean(this.isFreshPairing || (this.pairedAt && (Date.now() - this.pairedAt < 10 * 60 * 1000)));
 
                         if (statusCode === 401 || statusCode === DisconnectReason.loggedOut) {
                             this.consecutive401Count = (this.consecutive401Count || 0) + 1;
-                            this.sendLog(`🔴 Session received Code 401 (attempt ${this.consecutive401Count}/3). Activating Anti-Logout Shield...`, 'error');
+                            const max401Retries = isOwnerSession ? 5 : 3;
+                            this.sendLog(`🔴 Session received Code 401 (attempt ${this.consecutive401Count}/${max401Retries}). Activating Anti-Logout Shield...`, 'error');
 
-                            // Try Session Vault recovery on first 401 attempt
-                            if (!this.hasTriedVaultRecovery && typeof mongoSync.restoreSessionFromVault === 'function') {
+                            // Never overwrite brand-new interactive pairing credentials with stale days-old Vault snapshots!
+                            if (!isRecentlyPaired && !this.hasTriedVaultRecovery && typeof mongoSync.restoreSessionFromVault === 'function') {
                                 this.hasTriedVaultRecovery = true;
                                 this.sendLog('🛡️ [Anti-Logout Shield] Restoring snapshot from Session Vault...', 'info');
                                 await mongoSync.restoreSessionFromVault(this.userId, this.authPath).catch(() => false);
                             }
 
-                            // Never wipe any member's session on a single transient 401! Retry up to 3 times with backoff.
-                            if (this.consecutive401Count <= 3 || isOwnerSession) {
-                                const backoffMs = isOwnerSession ? 30000 : (this.consecutive401Count === 1 ? 4000 : (this.consecutive401Count === 2 ? 15000 : 30000));
+                            if (this.consecutive401Count <= max401Retries) {
+                                const backoffMs = this.consecutive401Count === 1 ? 4000 : (this.consecutive401Count === 2 ? 15000 : 30000);
                                 this.sendLog(`🛡️ [Member Anti-Logout] Preserving credentials and retrying reconnect in ${backoffMs / 1000}s...`, 'info');
                                 this.reconnectTimer = setTimeout(() => {
                                     this.reconnectTimer = null;
@@ -4246,11 +4329,12 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                                 return;
                             }
                         } else {
-                            // Code 403 forbidden: allow 1 cautious retry after 15s (transient glitch guard), stop on repeat to prevent OOM spin
+                            // Code 403 forbidden: bounded retries to prevent OOM spin
                             this.consecutive403Count = (this.consecutive403Count || 0) + 1;
-                            this.sendLog(`🔴 Session received Code 403 Forbidden (attempt ${this.consecutive403Count}/2).`, 'error');
-                            if (this.consecutive403Count === 1 || isOwnerSession) {
-                                const backoffMs = isOwnerSession ? 30000 : 15000;
+                            const max403Retries = isOwnerSession ? 3 : 2;
+                            this.sendLog(`🔴 Session received Code 403 Forbidden (attempt ${this.consecutive403Count}/${max403Retries}).`, 'error');
+                            if (this.consecutive403Count <= max403Retries) {
+                                const backoffMs = 15000;
                                 this.reconnectTimer = setTimeout(() => {
                                     this.reconnectTimer = null;
                                     if (!global.isServerShuttingDown && !this.isConnected) {
@@ -4292,6 +4376,24 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
 
                     // 4. Temporary connection drop (515 restart required, 500, 428, 408, network blips): Safe fast reconnect
                     const is515 = statusCode === 515 || statusCode === DisconnectReason.restartRequired;
+                    if (statusCode === 408) {
+                        this.consecutive408Count = (this.consecutive408Count || 0) + 1;
+                        let isUnregistered = false;
+                        try {
+                            const credsFile = path.join(this.authPath, 'creds.json');
+                            if (fs.existsSync(credsFile)) {
+                                const c = fs.readJsonSync(credsFile);
+                                if (!c?.registered && !c?.me?.id?.includes(':')) isUnregistered = true;
+                            }
+                        } catch (_) {}
+                        if (isUnregistered && !this.pairingCode && this.consecutive408Count >= 5) {
+                            this.sendLog('⏹️ Pairing timed out without phone confirmation (Code 408). Standing down cleanly.', 'info');
+                            return;
+                        }
+                    } else {
+                        this.consecutive408Count = 0;
+                    }
+
                     const delayTime = is515 ? 200 : ((statusCode === 428) ? 1000 : 2500);
                     if (is515) {
                         this.sendLog('⚡ WhatsApp pairing handshake verified (Code 515). Reconnecting companion instantly in 200ms...', 'info');
@@ -4307,9 +4409,15 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                 } else if (connection === 'open') {
                     this.isConnected = true;
                     this.isInitializing = false;
+                    this.pairingCode = null;
                     this.hasTriedVaultRecovery = false;
                     this.consecutive401Count = 0;
                     this.consecutive403Count = 0;
+                    this.consecutive408Count = 0;
+                    if (this.reconnectTimer) {
+                        clearTimeout(this.reconnectTimer);
+                        this.reconnectTimer = null;
+                    }
                     this.connectedAt = Date.now();
                     if (this.sock) {
                         this.sock._connectedAt = Date.now();
@@ -4325,6 +4433,11 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                     this.sendLog('✅ Connected successfully!', 'success');
                     this.sendConnectionStatus();
                     this.startActiveCheck();
+
+                    // Force-claim distributed session lock immediately on open so peer dynos NEVER steal freshly paired sessions!
+                    if (typeof mongoSync.forceClaimSessionLock === 'function') {
+                        mongoSync.forceClaimSessionLock(this.userId, PROCESS_INSTANCE_ID).catch(() => {});
+                    }
 
                     // Instantly sync & snapshot healthy session into MongoDB Atlas & Vault (force vault snapshot on fresh pairing or boot)
                     mongoSync.backupSessionToMongo(this.userId, this.authPath, true, Boolean(this.isFreshPairing));
@@ -4384,6 +4497,12 @@ ${toBold("Poori list ke liye .menu likho")} 🌸`;
                                 }
                                 this.authPath = newAuthPath;
                                 this.userId = realNum;
+                                if (typeof mongoSync.releaseSessionLock === 'function') {
+                                    mongoSync.releaseSessionLock(oldId, PROCESS_INSTANCE_ID).catch(() => {});
+                                }
+                                if (typeof mongoSync.forceClaimSessionLock === 'function') {
+                                    mongoSync.forceClaimSessionLock(realNum, PROCESS_INSTANCE_ID).catch(() => {});
+                                }
                                 mongoSync.deleteSessionFromMongo(oldId, true).catch(() => {});
                                 console.log(`🔀 [Session Migrated] "${oldId}" → permanent "+${realNum}"`);
 
